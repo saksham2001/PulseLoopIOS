@@ -1015,9 +1015,7 @@ struct WorkoutStatusStrip: View {
             if session.useGps {
                 StatusPill(icon: "location.fill", text: "GPS \(gpsLabel.0)", tint: gpsLabel.1)
             }
-            StatusPill(icon: "dot.radiowaves.left.and.right",
-                       text: ringState == .connected ? "Ring on" : "Ring …",
-                       tint: ringState == .connected ? PulseColors.success : PulseColors.warning)
+            StatusPill(icon: "dot.radiowaves.left.and.right", text: ringLabel.0, tint: ringLabel.1)
             StatusPill(icon: "heart.fill", text: "HR 1m", tint: PulseColors.textMuted)
             StatusPill(icon: "drop.fill", text: "SpO₂ 5m", tint: PulseColors.textMuted)
         }
@@ -1026,6 +1024,18 @@ struct WorkoutStatusStrip: View {
     private var gpsLabel: (String, Color) {
         guard let a = gpsAccuracy else { return ("Lost", PulseColors.danger) }
         return a <= 10 ? ("Good", PulseColors.success) : ("Weak", PulseColors.warning)
+    }
+
+    /// Ring pill: green when linked, amber while (re)connecting, red when dropped — so the user sees
+    /// the workout is handling a disconnect rather than silently stalling.
+    private var ringLabel: (String, Color) {
+        switch ringState {
+        case .connected:                  return ("Ring on", PulseColors.success)
+        case .reconnecting, .connecting:  return ("Reconnecting…", PulseColors.warning)
+        case .disconnected, .failed:      return ("Ring lost", PulseColors.danger)
+        case .scanning:                   return ("Searching…", PulseColors.warning)
+        case .idle:                       return ("Ring off", PulseColors.textMuted)
+        }
     }
 }
 

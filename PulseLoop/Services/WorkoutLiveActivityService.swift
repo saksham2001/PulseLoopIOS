@@ -24,7 +24,8 @@ final class WorkoutLiveActivityService: ObservableObject {
     /// Starts a Live Activity for the given session. Returns the activity id, or
     /// nil if Live Activities are unavailable / the request failed.
     @discardableResult
-    func start(sessionID: String, activityName: String, activityType: String) -> String? {
+    func start(sessionID: String, activityName: String, activityType: String,
+               startDate: Date, usesGps: Bool) -> String? {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             liveActivityLog.error("Live Activities not enabled (toggle off in Settings → PulseLoop → Live Activities, or unsupported). Skipping start.")
             return nil
@@ -35,6 +36,9 @@ final class WorkoutLiveActivityService: ObservableObject {
         let initialState = WorkoutActivityAttributes.ContentState(
             status: "recording",
             elapsedSeconds: 0,
+            startDate: startDate,
+            pausedAt: nil,
+            usesGps: usesGps,
             distanceMeters: 0,
             paceSecondsPerKm: nil,
             lastHeartRate: nil,
@@ -63,6 +67,9 @@ final class WorkoutLiveActivityService: ObservableObject {
     func update(sessionID: String,
                 status: String,
                 elapsedSeconds: Int,
+                startDate: Date,
+                pausedAt: Date?,
+                usesGps: Bool,
                 distanceMeters: Double,
                 paceSecondsPerKm: Double?,
                 lastHeartRate: Int?,
@@ -73,6 +80,9 @@ final class WorkoutLiveActivityService: ObservableObject {
         let state = WorkoutActivityAttributes.ContentState(
             status: status,
             elapsedSeconds: elapsedSeconds,
+            startDate: startDate,
+            pausedAt: pausedAt,
+            usesGps: usesGps,
             distanceMeters: distanceMeters,
             paceSecondsPerKm: paceSecondsPerKm,
             lastHeartRate: lastHeartRate,

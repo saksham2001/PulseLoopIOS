@@ -18,7 +18,14 @@ import SwiftUI
 struct WorkoutActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var status: String            // "recording" | "paused"
-        var elapsedSeconds: Int
+        var elapsedSeconds: Int       // non-live fallback only; the widget self-counts from startDate
+        /// Effective timer origin = startedAt + totalPauseSeconds, so `now - startDate` is the
+        /// elapsed time excluding pauses. Drives the widget's self-counting `Text(timerInterval:)`.
+        var startDate: Date
+        /// When paused, the instant to freeze the timer at; nil while recording.
+        var pausedAt: Date?
+        /// Whether this activity records GPS — drives whether Distance/Pace fields are shown.
+        var usesGps: Bool
         var distanceMeters: Double
         var paceSecondsPerKm: Double?
         var lastHeartRate: Int?

@@ -245,9 +245,17 @@ extension RingBLEClient: CBCentralManagerDelegate {
         error: Error?
     ) {
         MainActor.assumeIsolated {
-            state = .failed
             lastError = error?.localizedDescription ?? "Failed to connect."
-            publish(.deviceStateChanged(state: .failed, address: nil))
+            // Don't dead-end at .failed during a workout: keep a pending reconnect alive so iOS
+            // re-links the ring as soon as it's back in range.
+            if autoReconnect, let peripheral = self.peripheral {
+                state = .reconnecting
+                publish(.deviceStateChanged(state: .reconnecting, address: nil))
+                central.connect(peripheral, options: nil)
+            } else {
+                state = .failed
+                publish(.deviceStateChanged(state: .failed, address: nil))
+            }
         }
     }
 

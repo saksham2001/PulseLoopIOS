@@ -28,6 +28,13 @@ final class WorkoutSensorPollingService: ObservableObject {
 
     private let hrInterval: TimeInterval = 60
     private let spo2Interval: TimeInterval = 300
+    /// While the ring is disconnected we don't burn the full interval — retry soon so a reconnect
+    /// triggers a real read within ~10 s instead of up to a minute later.
+    private let disconnectedRetry: TimeInterval = 10
+
+    /// Fired after each real read attempt on a connected ring (success or failure). Lets the
+    /// orchestrator refresh the Live Activity so background HR/SpO₂ reach the Lock Screen.
+    var onPollCompleted: (() -> Void)?
 
     init(coordinator: RingSyncCoordinator, context: ModelContext) {
         self.coordinator = coordinator
@@ -100,16 +107,16 @@ final class WorkoutSensorPollingService: ObservableObject {
                 let now = Date()
 
                 if !self.isPolling, now >= self.nextHRPoll {
-                    await self.poll(kind: .heartRate)
-                    self.nextHRPoll = Date().addingTimeInterval(self.hrInterval)
+                    let didRead = await self.poll(kind: .heartRate)
+                    self.nextHRPoll = Date().addingTimeInterval(didRead ? self.hrInterval : self.disconnectedRetry)
                 } else if now >= self.nextHRPoll {
                     self.record(kind: "hr", status: "skipped")
                     self.nextHRPoll = Date().addingTimeInterval(self.hrInterval)
                 }
 
                 if !self.isPolling, now >= self.nextSpO2Poll {
-                    await self.poll(kind: .spo2)
-                    self.nextSpO2Poll = Date().addingTimeInterval(self.spo2Interval)
+                    let didRead = await self.poll(kind: .spo2)
+                    self.nextSpO2Poll = Date().addingTimeInterval(didRead ? self.spo2Interval : self.disconnectedRetry)
                 } else if now >= self.nextSpO2Poll {
                     self.record(kind: "spo2", status: "skipped")
                     self.nextSpO2Poll = Date().addingTimeInterval(self.spo2Interval)
@@ -122,15 +129,25 @@ final class WorkoutSensorPollingService: ObservableObject {
 
     // MARK: - Polling
 
-    private func poll(kind: SensorKind) async {
-        guard let sessionID else { return }
+    /// Attempts one sensor read. Returns `true` if a real read happened on a connected ring (so the
+    /// loop waits the full interval), `false` if the ring was disconnected (so the loop retries soon).
+    @discardableResult
+    private func poll(kind: SensorKind) async -> Bool {
+        guard let sessionID else { return true }
         let kindRaw = kind == .heartRate ? "hr" : "spo2"
 
         // Defensive: a finished/cancelled/missing session should never trigger a real read.
         guard let session = ActivityRepository.sessions(context: context).first(where: { $0.id == sessionID }),
               session.status == .recording else {
             record(kind: kindRaw, status: "skipped")
-            return
+            return true
+        }
+
+        // Ring is down (out of range / reconnecting): don't fail the read — skip and retry soon so
+        // we resume promptly once it reconnects, without piling up false failures or hammering it.
+        guard coordinator.isConnected else {
+            record(kind: kindRaw, status: "skipped", errorMessage: "ring disconnected")
+            return false
         }
 
         isPolling = true
@@ -156,6 +173,8 @@ final class WorkoutSensorPollingService: ObservableObject {
             }
             record(kind: kindRaw, status: "failed", errorMessage: "no reading (disconnected or timeout)")
         }
+        onPollCompleted?()
+        return true
     }
 
     // MARK: - Bookkeeping

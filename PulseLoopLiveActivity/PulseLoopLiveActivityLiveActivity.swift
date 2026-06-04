@@ -31,17 +31,23 @@ struct WorkoutLiveActivityWidget: Widget {
                         .foregroundStyle(.pink)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    Text(durationLabel(state.elapsedSeconds))
+                    elapsedTimer(state)
                         .font(.system(size: 26, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        Text(WorkoutLAColors.distanceLabel(state.distanceMeters))
-                            .foregroundStyle(.blue)
+                        if state.usesGps {
+                            Text(WorkoutLAColors.distanceLabel(state.distanceMeters))
+                                .foregroundStyle(.blue)
+                        } else {
+                            Text(state.lastSpO2.map { "SpO₂ \($0)%" } ?? "SpO₂ —")
+                                .foregroundStyle(WorkoutLAColors.spo2)
+                        }
                         Spacer()
-                        Text(state.status == "paused" ? "Paused" : WorkoutLAColors.paceLabel(state.paceSecondsPerKm))
+                        Text(state.status == "paused" ? "Paused"
+                             : (state.usesGps ? WorkoutLAColors.paceLabel(state.paceSecondsPerKm) : ""))
                             .foregroundStyle(.white)
                     }
                     .font(.caption).monospacedDigit()
@@ -50,9 +56,11 @@ struct WorkoutLiveActivityWidget: Widget {
                 Image(systemName: WorkoutLAColors.icon(for: state.activityType))
                     .foregroundStyle(.purple)
             } compactTrailing: {
-                Text(state.lastHeartRate.map { "\($0)" } ?? durationLabel(state.elapsedSeconds))
-                    .font(.caption2).monospacedDigit()
-                    .foregroundStyle(.white)
+                if let hr = state.lastHeartRate {
+                    Text("\(hr)").font(.caption2).monospacedDigit().foregroundStyle(.white)
+                } else {
+                    elapsedTimer(state).font(.caption2).monospacedDigit().foregroundStyle(.white)
+                }
             } minimal: {
                 Image(systemName: WorkoutLAColors.icon(for: state.activityType))
                     .foregroundStyle(.purple)
@@ -82,13 +90,16 @@ struct WorkoutLockScreenView: View {
                         Text("· Paused").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Text(durationLabel(state.elapsedSeconds))
+                elapsedTimer(state)
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .monospacedDigit()
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {
-                metric("DIST", WorkoutLAColors.distanceLabel(state.distanceMeters), .blue)
+                // Distance is only meaningful for GPS activities; indoor shows HR/SpO₂ only.
+                if state.usesGps {
+                    metric("DIST", WorkoutLAColors.distanceLabel(state.distanceMeters), .blue)
+                }
                 metric("HR", state.lastHeartRate.map { "\($0) bpm" } ?? "—", .pink)
                 metric("SpO₂", state.lastSpO2.map { "\($0)%" } ?? "—", .cyan)
             }
@@ -109,12 +120,13 @@ struct WorkoutLockScreenView: View {
 
 // MARK: - Helpers
 
-/// H:MM:SS / M:SS elapsed label. Static (re-rendered on each Live Activity content push) — avoids
-/// the `Text(timerInterval:)` API which was rendering blank in this Live Activity.
-func durationLabel(_ seconds: Int) -> String {
-    let s = max(0, seconds)
-    let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
-    return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
+/// Self-counting elapsed timer. `Text(timerInterval:)` ticks in the system process, so it keeps
+/// counting on the Lock Screen / Dynamic Island even when the app is backgrounded and pushing no
+/// updates. `startDate` already excludes paused time; while paused, `pauseTime` freezes the display.
+func elapsedTimer(_ state: WorkoutActivityAttributes.ContentState) -> Text {
+    Text(timerInterval: state.startDate...state.startDate.addingTimeInterval(48 * 3600),
+         pauseTime: state.status == "paused" ? state.pausedAt : nil,
+         countsDown: false)
 }
 
 // MARK: - Previews
@@ -127,10 +139,13 @@ extension WorkoutActivityAttributes {
 
 extension WorkoutActivityAttributes.ContentState {
     fileprivate static var recording: WorkoutActivityAttributes.ContentState {
-        WorkoutActivityAttributes.ContentState(status: "recording", elapsedSeconds: 1325, distanceMeters: 3450, paceSecondsPerKm: 312, lastHeartRate: 152, lastSpO2: 98, activityType: "run", lastUpdated: Date())
+        WorkoutActivityAttributes.ContentState(status: "recording", elapsedSeconds: 1325, startDate: Date().addingTimeInterval(-1325), pausedAt: nil, usesGps: true, distanceMeters: 3450, paceSecondsPerKm: 312, lastHeartRate: 152, lastSpO2: 98, activityType: "run", lastUpdated: Date())
     }
     fileprivate static var paused: WorkoutActivityAttributes.ContentState {
-        WorkoutActivityAttributes.ContentState(status: "paused", elapsedSeconds: 1325, distanceMeters: 3450, paceSecondsPerKm: 312, lastHeartRate: 138, lastSpO2: 97, activityType: "run", lastUpdated: Date())
+        WorkoutActivityAttributes.ContentState(status: "paused", elapsedSeconds: 1325, startDate: Date().addingTimeInterval(-1325), pausedAt: Date(), usesGps: true, distanceMeters: 3450, paceSecondsPerKm: 312, lastHeartRate: 138, lastSpO2: 97, activityType: "run", lastUpdated: Date())
+    }
+    fileprivate static var indoor: WorkoutActivityAttributes.ContentState {
+        WorkoutActivityAttributes.ContentState(status: "recording", elapsedSeconds: 640, startDate: Date().addingTimeInterval(-640), pausedAt: nil, usesGps: false, distanceMeters: 0, paceSecondsPerKm: nil, lastHeartRate: 121, lastSpO2: 97, activityType: "gym", lastUpdated: Date())
     }
 }
 
@@ -139,4 +154,5 @@ extension WorkoutActivityAttributes.ContentState {
 } contentStates: {
     WorkoutActivityAttributes.ContentState.recording
     WorkoutActivityAttributes.ContentState.paused
+    WorkoutActivityAttributes.ContentState.indoor
 }

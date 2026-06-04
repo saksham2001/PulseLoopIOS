@@ -27,6 +27,9 @@ final class LiveWorkoutManager {
         self.context = context
         self.polling = WorkoutSensorPollingService(coordinator: coordinator, context: context)
         self.liveActivity = WorkoutLiveActivityService()
+        // After each real sensor poll (including background polls), refresh the Live Activity so the
+        // Lock Screen HR/SpO₂ stay current even though the foreground per-second tick isn't running.
+        self.polling.onPollCompleted = { [weak self] in self?.refreshLiveActivityForActiveSession() }
     }
 
     // MARK: - Lifecycle
@@ -49,7 +52,9 @@ final class LiveWorkoutManager {
         session.liveActivityID = liveActivity.start(
             sessionID: session.id.uuidString,
             activityName: ActivityMeta.label(type),
-            activityType: type
+            activityType: type,
+            startDate: timerStart(session),
+            usesGps: useGps
         )
         lastPushedDistance = 0
         lastPushAt = Date()
@@ -108,12 +113,29 @@ final class LiveWorkoutManager {
             sessionID: session.id.uuidString,
             status: status,
             elapsedSeconds: elapsed,
+            startDate: timerStart(session),
+            pausedAt: status == "paused" ? now : nil,
+            usesGps: session.useGps,
             distanceMeters: session.useGps ? distance : 0,
             paceSecondsPerKm: session.useGps ? pace : nil,
             lastHeartRate: coordinator.latestHRValue,
             lastSpO2: coordinator.latestSpO2Value,
             activityType: session.type
         )
+    }
+
+    /// Effective timer origin so the widget's self-counting `Text(timerInterval:)` shows elapsed time
+    /// excluding paused spans: `now - timerStart == startedAt..now minus totalPauseSeconds`.
+    private func timerStart(_ session: ActivitySession) -> Date {
+        session.startedAt.addingTimeInterval(session.totalPauseSeconds)
+    }
+
+    /// Refresh the Live Activity for the currently recording session (used by the poll-completed hook
+    /// so background HR/SpO₂ reads reach the Lock Screen). No-op if nothing is recording.
+    private func refreshLiveActivityForActiveSession() {
+        guard let session = ActivityRepository.sessions(context: context)
+            .first(where: { $0.status == .recording }) else { return }
+        push(session, status: "recording", force: true)
     }
 
     // MARK: - Recovery + deep link
@@ -146,7 +168,9 @@ final class LiveWorkoutManager {
             session.liveActivityID = liveActivity.start(
                 sessionID: session.id.uuidString,
                 activityName: ActivityMeta.label(session.type),
-                activityType: session.type
+                activityType: session.type,
+                startDate: timerStart(session),
+                usesGps: session.useGps
             )
         }
         push(session, status: "recording", force: true)

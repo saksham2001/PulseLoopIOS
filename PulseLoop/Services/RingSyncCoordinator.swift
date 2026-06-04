@@ -24,6 +24,10 @@ final class RingSyncCoordinator {
     private(set) var latestSpO2Value: Int?
     private(set) var workoutHRActive = false
 
+    /// Ring connection state, surfaced for the workout polling layer + UI.
+    var connectionState: RingConnectionState { client.state }
+    var isConnected: Bool { client.state == .connected }
+
     /// Warm-up windows from Protocol.md (HR ~10–15s, SpO2 ~35–45s).
     private let hrMeasureSeconds: UInt64 = 12
     private let spo2MeasureSeconds: UInt64 = 40
