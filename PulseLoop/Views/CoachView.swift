@@ -20,6 +20,7 @@ struct CoachView: View {
     @State private var activeConversationId: UUID?
     @State private var showHistory = false
     @State private var keyboardHeight: CGFloat = 0
+    @State private var nav = CoachNavigation.shared
     @FocusState private var composerFocused: Bool
 
     /// Bottom inset for the composer: clears the overlaid nav bar (~60) when the
@@ -120,6 +121,10 @@ struct CoachView: View {
             if activeConversationId == nil {
                 activeConversationId = allMessages.last?.conversationId ?? conversations.first?.id
             }
+            if nav.openDailyCheckins { openDailyCheckins() }
+        }
+        .onChange(of: nav.openDailyCheckins) { _, open in
+            if open { openDailyCheckins() }
         }
         .sheet(isPresented: $showHistory) {
             CoachHistorySheet(conversations: conversations, activeId: activeConversationId) { id in
@@ -212,6 +217,14 @@ struct CoachView: View {
 
     private func isDefaultTitle(_ title: String) -> Bool {
         title == "New chat" || title == "Today check-in"
+    }
+
+    /// Open the "Daily check-ins" thread in response to a notification tap.
+    private func openDailyCheckins() {
+        if let convo = conversations.first(where: { $0.title == CoachNotificationService.dailyCheckinsTitle }) {
+            activeConversationId = convo.id
+        }
+        nav.openDailyCheckins = false
     }
 
     private func newConversation() {

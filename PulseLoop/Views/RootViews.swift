@@ -86,6 +86,7 @@ struct RootAppView: View {
 struct MainTabView: View {
     @Binding var path: NavigationPath
     @State private var selected: MainTab
+    @State private var nav = CoachNavigation.shared
 
     init(path: Binding<NavigationPath>) {
         self._path = path
@@ -113,6 +114,9 @@ struct MainTabView: View {
             // tab content. CoachView lifts its own composer via a keyboard observer.
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .onChange(of: selected) { _, _ in UIApplication.shared.endEditing() }
+        }
+        .onChange(of: nav.openDailyCheckins) { _, open in
+            if open { selected = .coach }  // CoachView opens the thread + resets the flag
         }
         .background(PulseColors.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)

@@ -60,8 +60,32 @@ struct CoachSettings: Codable, Equatable {
     var enableLiveMeasurements: Bool = false
     var maxToolCalls: Int = 8
     var maxRounds: Int = 4
+    // Milestone D — automated daily check-in notifications.
+    var notificationsEnabled: Bool = false
+    var morningHour: Int = 8
+    var eveningHour: Int = 19
 
     static let `default` = CoachSettings()
+
+    init() {}
+
+    /// Tolerant decode: missing keys (older stored settings, new fields) fall back
+    /// to defaults instead of failing the whole decode.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = CoachSettings.default
+        providerMode = try c.decodeIfPresent(CoachProviderMode.self, forKey: .providerMode) ?? d.providerMode
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
+        reasoningEffort = try c.decodeIfPresent(String.self, forKey: .reasoningEffort)
+        enableWebSearch = try c.decodeIfPresent(Bool.self, forKey: .enableWebSearch) ?? d.enableWebSearch
+        enableWriteTools = try c.decodeIfPresent(Bool.self, forKey: .enableWriteTools) ?? d.enableWriteTools
+        enableLiveMeasurements = try c.decodeIfPresent(Bool.self, forKey: .enableLiveMeasurements) ?? d.enableLiveMeasurements
+        maxToolCalls = try c.decodeIfPresent(Int.self, forKey: .maxToolCalls) ?? d.maxToolCalls
+        maxRounds = try c.decodeIfPresent(Int.self, forKey: .maxRounds) ?? d.maxRounds
+        notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? d.notificationsEnabled
+        morningHour = try c.decodeIfPresent(Int.self, forKey: .morningHour) ?? d.morningHour
+        eveningHour = try c.decodeIfPresent(Int.self, forKey: .eveningHour) ?? d.eveningHour
+    }
 }
 
 /// Observable, UserDefaults-backed store for `CoachSettings`. Mutating `settings`

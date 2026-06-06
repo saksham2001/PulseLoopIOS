@@ -1,0 +1,64 @@
+import Foundation
+import SwiftData
+
+/// Compact ~12-hour context the notification generator sees. Reuses
+/// `CoachContextBuilder` for the shared profile/goals/today/sleep/memory blocks
+/// and adds a rolling 12h HR/SpO₂ window, the slot, and the recent-notification
+/// history (so the LLM never repeats itself).
+struct NotificationContextPacket: Encodable {
+    var slot: String
+    var generatedAt: String
+    var timezone: String
+    var profileName: String?
+    var goals: CoachContextPacket.GoalContext
+    var today: CoachContextPacket.DayContext
+    var latestSleep: CoachContextPacket.SleepContext?
+    var latestVitals: CoachContextPacket.VitalsContext
+    var hrLast12h: CoachDataAccess.Stats
+    var spo2Last12h: CoachDataAccess.Stats
+    var recentWorkouts: [CoachContextPacket.WorkoutContext]
+    var memories: [CoachContextPacket.MemoryContext]
+    var dataQualityWarnings: [String]
+    var recentNotifications: [String]
+}
+
+@MainActor
+enum NotificationContextBuilder {
+    static func build(
+        slot: CoachNotificationSlot, context: ModelContext, now: Date = Date()
+    ) -> NotificationContextPacket {
+        let packet = CoachContextBuilder.build(context: context, now: now)
+        let cutoff = now.addingTimeInterval(-12 * 3600)
+
+        let hr = MetricsRepository.measurements(kind: .heartRate, context: context)
+            .filter { $0.timestamp >= cutoff }.map(\.value)
+        let spo2 = MetricsRepository.measurements(kind: .spo2, context: context)
+            .filter { $0.timestamp >= cutoff }.map(\.value)
+
+        return NotificationContextPacket(
+            slot: slot.rawValue,
+            generatedAt: CoachDataAccess.isoString(now),
+            timezone: TimeZone.current.identifier,
+            profileName: packet.profile.name,
+            goals: packet.goals,
+            today: packet.today,
+            latestSleep: packet.latestSleep,
+            latestVitals: packet.latestVitals,
+            hrLast12h: CoachDataAccess.stats(hr),
+            spo2Last12h: CoachDataAccess.stats(spo2),
+            recentWorkouts: packet.recentWorkouts,
+            memories: packet.memories,
+            dataQualityWarnings: packet.dataQualityWarnings,
+            recentNotifications: recentNotifications(context: context)
+        )
+    }
+
+    /// Last few delivered check-ins ("title — body") so the prompt can avoid repeats.
+    static func recentNotifications(context: ModelContext, limit: Int = 5) -> [String] {
+        let descriptor = FetchDescriptor<CoachNotificationRecord>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.prefix(limit).map { "\($0.title) — \($0.body)" }
+    }
+}

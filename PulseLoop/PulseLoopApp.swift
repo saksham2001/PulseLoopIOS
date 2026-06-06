@@ -7,9 +7,11 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 @main
 struct PulseLoopApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     let container: ModelContainer
     @State private var bleClient: RingBLEClient
     @State private var coordinator: RingSyncCoordinator
@@ -17,6 +19,8 @@ struct PulseLoopApp: App {
     @State private var liveWorkout: LiveWorkoutManager
     /// Retained for app lifetime so it keeps draining the event bus into SwiftData.
     private let persistence: EventPersistenceSubscriber
+    /// Retained so the UNUserNotificationCenter delegate stays alive.
+    private let notificationDelegate = CoachNotificationDelegate()
 
     init() {
         let container: ModelContainer
@@ -43,6 +47,13 @@ struct PulseLoopApp: App {
         // CoreBluetooth reports poweredOn (see RingBLEClient.centralManagerDidUpdateState).
         subscriber.start()
         coordinator.start()
+
+        // Daily check-in notifications: route taps + register the background wake.
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+        let ctx = container.mainContext
+        CoachNotificationScheduler.shared.register {
+            CoachNotificationService(modelContext: ctx, coordinator: coordinator)
+        }
     }
 
     var body: some Scene {
@@ -54,5 +65,15 @@ struct PulseLoopApp: App {
                 .environment(liveWorkout)
         }
         .modelContainer(container)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            CoachNotificationScheduler.shared.scheduleNext()
+            // Foreground catch-up: deliver a due check-in we missed while away.
+            let ctx = container.mainContext
+            let coordinator = coordinator
+            Task {
+                await CoachNotificationService(modelContext: ctx, coordinator: coordinator).runDueSlot()
+            }
+        }
     }
 }
