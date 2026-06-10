@@ -1,5 +1,7 @@
 # PulseLoop
 
+![PulseLoop](docs/thumbnail.png)
+
 An LLM-native health app for iOS that turns a cheap Bluetooth "smart ring"
 (the generic Chinese `56ff` BLE ring sold under dozens of brands) into a
 real, conversational health tracker.
