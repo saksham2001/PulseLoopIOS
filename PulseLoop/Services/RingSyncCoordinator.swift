@@ -26,6 +26,9 @@ final class RingSyncCoordinator {
     /// Set when the ring reports a completed HR measurement with no usable reading (not worn), so a
     /// spot measurement can fail fast instead of waiting out the full window.
     private var hrNoReadingReported = false
+    /// True once the *current* measurement has produced at least one real bpm — distinguishes a fresh
+    /// reading from a stale `latestHRValue` left on screen from a previous measurement.
+    private var measurementReceivedReading = false
 
     /// Ring connection state, surfaced for the workout polling layer + UI.
     var connectionState: RingConnectionState { client.state }
@@ -141,20 +144,24 @@ final class RingSyncCoordinator {
         guard hrState != .measuring else { return nil }
         guard client.state == .connected else { hrState = .failed; return nil }
         hrState = .measuring
-        latestHRValue = nil
+        // NOTE: do *not* clear `latestHRValue` — it's the live value the workout UI shows, so a new
+        // measurement keeps the last reading on screen until a fresh one replaces it (no blanking to —).
         hrNoReadingReported = false
+        measurementReceivedReading = false
         // Spot reading: the engine picks the right command (jring live stream / Colmi manual 0x69
         // continuous stream). Always stop the stream when we're done so the ring doesn't keep measuring.
         engine?.measureHeartRateSpot()
-        // Phase 1 — warm up: poll until the first real reading or the window elapses / no-reading.
-        let firstReading = await pollForValue(
+        // Phase 1 — warm up: the manual stream emits bpm 0 for ~25s before a real reading. Poll the full
+        // window for the first reading *of this measurement* (not a stale prior value). Warm-up zeros are
+        // dropped by the decoder, so `hrNoReadingReported` only trips on a genuine error (worn wrong).
+        _ = await pollForValue(
             window: hrMeasureSeconds,
-            value: { self.latestHRValue },
+            value: { self.measurementReceivedReading ? self.latestHRValue : nil },
             abort: { self.hrNoReadingReported }
         )
         // Phase 2 — settle: keep reading briefly so the reported value is stable, not a first jump.
-        var result = firstReading
-        if firstReading != nil {
+        var result = measurementReceivedReading ? latestHRValue : nil
+        if result != nil {
             for _ in 0..<(hrSettleSeconds * 2) {   // 0.5s granularity
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 if let v = latestHRValue { result = v }   // latest stable sample
@@ -200,9 +207,11 @@ final class RingSyncCoordinator {
         switch event {
         case let .heartRateSample(bpm, _):
             latestHRValue = bpm
+            if hrState == .measuring { measurementReceivedReading = true }
         case .heartRateComplete:
-            // The ring finished a measurement without a usable reading (not worn / temporary error).
-            if hrState == .measuring, latestHRValue == nil { hrNoReadingReported = true }
+            // The ring reported a genuine error/no-reading (worn incorrectly). Only fast-fail if this
+            // measurement hasn't already produced a real reading.
+            if hrState == .measuring, !measurementReceivedReading { hrNoReadingReported = true }
         case let .spo2Result(value, _):
             latestSpO2Value = value
         case let .spo2Progress(percent, _):

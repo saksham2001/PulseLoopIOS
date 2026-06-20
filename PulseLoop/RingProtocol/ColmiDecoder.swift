@@ -23,10 +23,17 @@ struct ColmiDecoder {
             return [.battery(percent: Int(v[1]))]
 
         case ColmiCommandID.manualHeartRate:
-            // 69 <?> <errorCode> <bpm>. errorCode: 0=ok, 1=worn incorrectly, 2=temporary/no data.
+            // 69 <?> <errorCode> <bpm>. errorCode: 0=ok, else worn-incorrectly/temporary.
+            // The manual measurement is a *continuous stream* that warms up emitting bpm 0 for ~25s
+            // before real readings — so a 0 with no error is warm-up, NOT a terminal "no reading".
             let errorCode = v[2]
             let bpm = Int(v[3])
-            guard errorCode == 0, (30...220).contains(bpm) else { return [.heartRateComplete(timestamp: now)] }
+            if errorCode != 0 {
+                return [.heartRateComplete(timestamp: now)]   // genuine no-reading / worn incorrectly
+            }
+            guard (30...220).contains(bpm) else {
+                return []   // warm-up (bpm 0) or noise — keep streaming, don't signal completion
+            }
             return [.heartRateSample(bpm: bpm, timestamp: now)]
 
         case ColmiCommandID.realtimeHeartRate:

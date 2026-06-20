@@ -455,7 +455,9 @@ struct RecordLiveView: View {
     // MARK: freshness copy
 
     private func hrSubtitle(_ session: ActivitySession) -> String {
-        if coordinator.hrState == .failed { return "last read failed · retrying" }
+        // Keep the last value on screen and never flash an error: while a reading is in progress show
+        // "measuring…", otherwise the time since the last sample. Only "waiting…" before the first one.
+        if coordinator.hrState == .measuring { return "measuring…" }
         guard let last = lastSampleTime(session.id, kind: "hr") else { return "waiting…" }
         return "updated \(agoLabel(last))"
     }

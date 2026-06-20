@@ -334,6 +334,24 @@ final class ColmiDecoderTests: XCTestCase {
         XCTAssertFalse(decoder.decodeNormal(errFrame).contains { if case .heartRateSample = $0 { return true }; return false })
     }
 
+    /// Real-capture regression: the manual stream warms up with `69 02 00 00` (bpm 0, no error) for
+    /// ~25s. Those must emit NOTHING (not `.heartRateComplete`) so the measurement isn't aborted on the
+    /// first warm-up frame; real readings (`69 02 00 4f` = 79 bpm) decode normally.
+    func testManualHeartRateWarmUpEmitsNothing() {
+        // Mirrors the real `69 02 00 00` warm-up frame (v[1]=02, errorCode=v[2]=0, bpm=v[3]=0).
+        let warmUp = ColmiPacket.frame([ColmiCommandID.manualHeartRate, 0x02, 0x00, 0x00])
+        XCTAssertTrue(decoder.decodeNormal(warmUp).isEmpty, "warm-up bpm 0 should produce no events")
+
+        // Real reading `69 02 00 4f` = 79 bpm.
+        let reading = ColmiPacket.frame([ColmiCommandID.manualHeartRate, 0x02, 0x00, 0x4f])
+        XCTAssertTrue(decoder.decodeNormal(reading).contains { if case let .heartRateSample(bpm, _) = $0 { return bpm == 79 }; return false },
+                      "real reading 0x4f should decode to 79 bpm")
+
+        // A genuine error reply (errorCode != 0) still signals completion (no sample).
+        let errReply = ColmiPacket.frame([ColmiCommandID.manualHeartRate, 0x02, 0x01, 0x4f])
+        XCTAssertTrue(decoder.decodeNormal(errReply).contains { if case .heartRateComplete = $0 { return true }; return false })
+    }
+
     // MARK: Big-data command-channel routing
 
     @MainActor

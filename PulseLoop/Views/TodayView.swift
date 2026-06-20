@@ -17,6 +17,9 @@ struct TodayView: View {
     var body: some View {
         let summary = MetricsService.buildTodaySummary(context: modelContext)
         let hero = TodayInsights.deriveHero(summary)
+        // On-demand measurement is capability-gated: a ring that can't do an instant reading (e.g.
+        // Colmi has no spot SpO2) makes that tile non-tappable — the tile still shows synced history.
+        let caps = MetricsService.deviceCapabilities(modelContext)
         let coachSummary = todaySummaries.first { $0.scopeKey == CoachDataAccess.localDateString(Date()) }
         ScrollView {
             VStack(spacing: 16) {
@@ -49,7 +52,7 @@ struct TodayView: View {
                         unit: hasHR(summary) ? "bpm" : nil,
                         color: PulseColors.heartRate,
                         sparkline: summary.trends.hrSamples24h.map(\.value),
-                        onTap: { measuring = .hr }
+                        onTap: caps.contains(.manualHeartRate) ? { measuring = .hr } : nil
                     )
                     MetricCardButton(
                         metric: "spo2", label: "SpO₂",
@@ -57,7 +60,7 @@ struct TodayView: View {
                         unit: hasSpO2(summary) ? "%" : nil,
                         color: PulseColors.spo2,
                         sparkline: summary.trends.spo2Samples24h.map(\.value),
-                        onTap: { measuring = .spo2 }
+                        onTap: caps.contains(.manualSpo2) ? { measuring = .spo2 } : nil
                     )
                     MetricCardButton(
                         metric: "sleep", label: "Sleep",
