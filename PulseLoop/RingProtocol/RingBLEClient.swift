@@ -89,9 +89,18 @@ final class RingBLEClient: NSObject {
     /// The 0x180F battery service, used only when the active driver exposes GATT battery.
     private let batteryServiceCBUUID = CBUUID(string: "180F")
 
-    override init() {
+    override convenience init() {
+        self.init(startManager: true)
+    }
+
+    /// `startManager: false` skips creating the `CBCentralManager`, used by the app host under
+    /// XCTest where CoreBluetooth's XPC service is unavailable (headless CI simulator) and would
+    /// otherwise log "XPC connection invalid" and hang. No BLE method is called in that mode.
+    init(startManager: Bool) {
         super.init()
-        central = CBCentralManager(delegate: self, queue: nil)
+        if startManager {
+            central = CBCentralManager(delegate: self, queue: nil)
+        }
     }
 
     // MARK: - Public API
