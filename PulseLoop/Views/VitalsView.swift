@@ -10,6 +10,9 @@ struct VitalsView: View {
         let summary = MetricsService.buildTodaySummary(context: modelContext)
         let hrSamples = MetricsService.metricRange(metric: .heartRate, range: .twentyFourHours, context: modelContext)
         let spo2Samples = MetricsService.metricRange(metric: .spo2, range: .twentyFourHours, context: modelContext)
+        let stressSamples = MetricsService.metricRange(metric: .stress, range: .twentyFourHours, context: modelContext)
+        let hrvSamples = MetricsService.metricRange(metric: .hrv, range: .twentyFourHours, context: modelContext)
+        let tempSamples = MetricsService.metricRange(metric: .temperature, range: .twentyFourHours, context: modelContext)
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -18,9 +21,18 @@ struct VitalsView: View {
                     Text("Live measurements and trends").font(.system(size: 14)).foregroundStyle(PulseColors.textSecondary)
                 }
 
-                HStack(spacing: 8) {
-                    QuickActionButton(label: "Start HR", accent: true) { measuring = .hr }
-                    QuickActionButton(label: "Start SpO₂") { measuring = .spo2 }
+                // On-demand measurement buttons are capability-gated: a ring that can't do an instant
+                // reading (e.g. Colmi has no spot SpO2) simply doesn't show that button.
+                let caps = MetricsService.deviceCapabilities(modelContext)
+                if caps.contains(.manualHeartRate) || caps.contains(.manualSpo2) {
+                    HStack(spacing: 8) {
+                        if caps.contains(.manualHeartRate) {
+                            QuickActionButton(label: "Start HR", accent: true) { measuring = .hr }
+                        }
+                        if caps.contains(.manualSpo2) {
+                            QuickActionButton(label: "Start SpO₂") { measuring = .spo2 }
+                        }
+                    }
                 }
 
                 DetailCard(title: "Heart rate", color: PulseColors.heartRate) {
@@ -69,8 +81,51 @@ struct VitalsView: View {
                     }
                 }
 
-                comingSoonCard(title: "HRV", message: "HRV decoding coming soon")
-                comingSoonCard(title: "Skin temperature", message: "Temperature decoding coming soon")
+                if MetricsService.supports(.stress, context: modelContext) {
+                    DetailCard(title: "Stress", color: PulseColors.stress) {
+                        if let latest = stressSamples.last?.value {
+                            StressGaugeChart(value: latest).padding(.top, 12)
+                        } else {
+                            InlineEmptyState(title: "No stress data yet", message: "Wear the ring through the day and sync.")
+                        }
+                    }
+                }
+
+                if MetricsService.supports(.hrv, context: modelContext) {
+                    DetailCard(title: "HRV", color: PulseColors.hrv) {
+                        let label = hrvSamples.last.map { "\(Int($0.value))" } ?? "--"
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(label).font(.system(size: 40, weight: .semibold)).monospacedDigit().foregroundStyle(PulseColors.textPrimary)
+                            if !hrvSamples.isEmpty {
+                                Text("ms").font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textMuted)
+                            }
+                        }
+                        .padding(.top, 12)
+                        if hrvSamples.count > 1 {
+                            HRVTrendBandChart(samples: hrvSamples).padding(.top, 12)
+                        } else {
+                            InlineEmptyState(title: "No HRV data yet", message: "HRV builds up over a few hours of wear.")
+                        }
+                    }
+                }
+
+                if MetricsService.supports(.temperature, context: modelContext) {
+                    DetailCard(title: "Skin temperature", color: PulseColors.temperature) {
+                        let label = tempSamples.last.map { String(format: "%.1f", $0.value) } ?? "--"
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(label).font(.system(size: 40, weight: .semibold)).monospacedDigit().foregroundStyle(PulseColors.textPrimary)
+                            if !tempSamples.isEmpty {
+                                Text("°C").font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textMuted)
+                            }
+                        }
+                        .padding(.top, 12)
+                        if tempSamples.count > 1 {
+                            TemperatureRangeChart(samples: tempSamples).padding(.top, 12)
+                        } else {
+                            InlineEmptyState(title: "No temperature data yet", message: "Temperature trends appear after overnight wear.")
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 96)
@@ -85,21 +140,9 @@ struct VitalsView: View {
     private func statusLine(_ summary: TodaySummary, _ key: MetricKey) -> String {
         let state = summary.metricStates[key]
         let status = state?.status ?? "No reading yet"
-        let confidence = state?.confidence.rawValue ?? "partial"
-        return "\(status.uppercased()) · \(confidence.uppercased()) CONFIDENCE"
+        return status.uppercased()
     }
 
-    private func comingSoonCard(title: String, message: String) -> some View {
-        VStack(spacing: 4) {
-            Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textPrimary)
-            Text(message).font(.system(size: 12)).foregroundStyle(PulseColors.textMuted)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-        .background(PulseColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
-    }
 }
 
 private struct VitalsMeasuringItem: Identifiable {

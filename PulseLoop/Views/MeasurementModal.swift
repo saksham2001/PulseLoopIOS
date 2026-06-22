@@ -104,6 +104,15 @@ struct MeasurementSheet: View {
         .onAppear { animate = true }
     }
 
+    private var errorMessage: String {
+        guard ble.state == .connected else {
+            return "Your ring isn't connected. Reconnect it and try again."
+        }
+        return kind == .hr
+            ? "Couldn't get a heart-rate reading. Make sure the ring is snug and worn on your finger, then try again."
+            : "Couldn't get a blood-oxygen reading. Wear the ring snugly and keep still, then try again. SpO₂ also builds up over a while of wear."
+    }
+
     private var phaseCopy: String {
         switch phase {
         case .preparing: return instruction
@@ -121,9 +130,9 @@ struct MeasurementSheet: View {
                 .frame(width: 80, height: 80)
                 .background(PulseColors.danger.opacity(0.10), in: Circle())
                 .overlay(Circle().stroke(PulseColors.danger.opacity(0.3), lineWidth: 1))
-            Text("Measurement didn't complete. Keep the ring connected and try again.")
+            Text(errorMessage)
                 .font(.system(size: 14)).foregroundStyle(PulseColors.textSecondary)
-                .multilineTextAlignment(.center).frame(maxWidth: 260)
+                .multilineTextAlignment(.center).frame(maxWidth: 280)
             Button("Close") { dismiss() }
                 .font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
                 .padding(.horizontal, 20).padding(.vertical, 10)

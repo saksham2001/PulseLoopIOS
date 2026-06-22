@@ -5,11 +5,12 @@
 📖 Read the detailed writeup on how the app works here: [sakshambhutani.xyz/projects/20_project](https://sakshambhutani.xyz/projects/20_project/)
 
 An LLM-native health app for iOS that turns a cheap Bluetooth "smart ring"
-(the generic Chinese `56ff` BLE ring sold under dozens of brands) into a
-real, conversational health tracker.
+into a real, conversational health tracker. It currently supports the generic Chinese
+Jring and the **Colmi / Yawell** ring family (R02/R0x/R1x/H59), behind a device-agnostic driver layer so
+adding more wearables is straightforward.
 
-PulseLoop talks to the ring directly over Bluetooth LE — no vendor cloud, no
-account — and layers an AI **Coach** on top of your own data. Instead of
+PulseLoop talks to the ring directly over Bluetooth LE (no vendor cloud, no
+account) and layers an AI **Coach** on top of your own data. Instead of
 static charts, you get a coach that can read your metrics, run its own
 analysis, draw charts, remember context about you, and answer questions about
 your sleep, heart rate, activity, and recovery.
@@ -56,9 +57,59 @@ your sleep, heart rate, activity, and recovery.
 > under the same name, change prices, and your unit may behave differently from mine. Buy at
 > your own risk and treat any data the ring produces as approximate.
 
-| Ring | BLE Family | Original App | Price | Listing |
+PulseLoop is built around a device-agnostic driver layer, so each supported ring
+declares exactly what it can do and the app shows only those features. The
+tables below break support down by capability.
+
+**Support status legend**
+
+| Status | Meaning |
+|---|---|
+| ✅ | **Supported & tested**: Fully verified working on real hardware |
+| 🧪 | **Implemented, needs testing**: code is in place (decoded from the protocol) but not yet tested with that specific model |
+| 🚧 | **Planned / not yet implemented** |
+| — | **Not applicable**: the hardware doesn't expose this capability |
+
+### Ring families
+
+| Ring | BLE Family | Advertised name | Price | Listing |
 |---|---|---|---|---|
-| JRing (generic smart ring) | `56ff` | JRing | $7–12 | [AliExpress](https://www.aliexpress.us/item/3256810466598469.html) |
+| jring (generic smart ring) | `56ff` | `SMART_RING` | $7–12 | [AliExpress](https://www.aliexpress.us/item/3256810466598469.html) |
+| Colmi / Yawell ring family | `6e40fff0` / `de5bf728` | `R02_…`, `R0x…`, `COLMI R1x…`, `H59_…` | $15–30 | [Colmi store](https://www.colmi.com/) |
+
+### Capability matrix
+
+Major functional areas, by device:
+
+| Capability | jring | Colmi R11 | Other Colmi/Yawell¹ |
+|---|---|---|---|
+| **Connection & pairing** (scan, connect, reconnect, forget) | ✅ | ✅ | 🧪 |
+| **History sync** (pull stored data on connect) | ✅ | ✅ | 🧪 |
+| **Heart rate — spot measurement** | ✅ | ✅ | 🧪 |
+| **Heart rate — history** | ✅ | ✅ | 🧪 |
+| **Heart rate — live (workout)** | ✅ | ✅ | 🧪 |
+| **SpO₂ — spot measurement** | ✅ | — ² | — ² |
+| **SpO₂ — history** | ✅ | ✅ | 🧪 |
+| **Steps / distance / calories** | ✅ | ✅ ³ | 🧪 |
+| **Activity / workout recording** (live HR, zones, GPS route) | ✅ | ✅ | 🧪 |
+| **Sleep stages** (light / deep / awake) | ✅ | ✅ | 🧪 |
+| **REM sleep** | — | ✅ | 🧪 |
+| **HRV** | — | ✅ | 🧪 |
+| **Stress** | — | ✅ | 🧪 |
+| **Body temperature** | — | ✅ | 🧪 |
+| **Battery level** | ✅ | ✅ | 🧪 |
+| **Find device** | ✅ | ✅ | 🧪 |
+
+¹ Other Colmi/Yawell models recognized by the same driver: **Colmi R02, R03,
+  R06, R07, R09, R10, R12** and **Yawell R05, R10, R11, H59**. Same protocol as
+  the R11, so all capabilities are implemented, but not yet hardware-verified
+  per model.
+
+² The Colmi family has no on-demand SpO₂ reading; SpO₂ is an all-day background
+  metric, so only the synced **history/graph** is available (no spot button).
+
+³ Calories from Colmi history are currently hidden pending verification of the
+  raw value; steps and distance are shown.
 
 ---
 

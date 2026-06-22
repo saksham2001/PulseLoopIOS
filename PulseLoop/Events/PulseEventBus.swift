@@ -3,10 +3,18 @@ import SwiftData
 
 enum PulseEvent: Sendable {
     case deviceStateChanged(state: RingConnectionState, address: String?)
+    /// Emitted on connect once the active wearable's type + capabilities are known, so persistence
+    /// can stamp the `Device` and the UI can capability-gate its surfaces.
+    case deviceIdentified(deviceType: RingDeviceType, capabilities: Set<WearableCapability>)
     case batteryLevel(percent: Int)
     case rawPacket(direction: PacketDirection, data: Data, decoded: RingDecodedEvent)
     case derivedUpdate(kind: String, entityType: String, entityId: String, payloadJSON: String?)
     case activityUpdate(timestamp: Date, steps: Int, distanceMeters: Double, calories: Double)
+    /// One intraday activity bucket (summed into its day, not ratcheted). Calories omitted.
+    case activityBucket(timestamp: Date, steps: Int, distanceMeters: Double)
+    /// Emitted when a fresh ring history sync begins, so persistence zeroes the days about to be
+    /// re-summed from buckets — keeps re-syncs idempotent (cleared data can't come back inflated).
+    case activitySyncReset(sinceDaysAgo: Int)
     case heartRateSample(bpm: Int, timestamp: Date)
     case heartRateComplete(timestamp: Date)
     case spo2Progress(percent: Int?, timestamp: Date)
@@ -14,6 +22,11 @@ enum PulseEvent: Sendable {
     case spo2Complete(timestamp: Date)
     case sleepTimeline(timestamp: Date, stages: [SleepStage])
     case historyMeasurement(kind: MeasurementKind, value: Double, timestamp: Date)
+    case stressSample(value: Int, timestamp: Date)
+    case hrvSample(value: Int, timestamp: Date)
+    case temperatureSample(celsius: Double, timestamp: Date)
+    /// Friendly history-sync progress for the product UI (e.g. "Syncing sleep…"). Never protocol terms.
+    case syncProgress(stage: String)
     case workoutStarted(UUID)
     case workoutPaused(UUID)
     case workoutResumed(UUID)
@@ -52,7 +65,10 @@ actor PulseEventBus {
 final class EventPersistenceSubscriber {
     private let context: ModelContext
     private var task: Task<Void, Never>?
-    
+    /// Days (midnight) whose ring-history activity total has been reset during the current sync run, so
+    /// each day is zeroed once on its first bucket rather than all days up front.
+    private var activityDaysResetThisRun: Set<Date> = []
+
     init(context: ModelContext) {
         self.context = context
     }
@@ -85,11 +101,19 @@ final class EventPersistenceSubscriber {
                 device.lastSyncAt = Date()
             }
             context.insert(device)
+        case let .deviceIdentified(deviceType, capabilities):
+            let device = MetricsService.fetchDevices(context).first ?? Device()
+            device.deviceType = deviceType
+            device.capabilities = capabilities
+            context.insert(device)
         case let .batteryLevel(percent):
             let device = MetricsService.fetchDevices(context).first ?? Device()
             device.batteryPercent = percent
             context.insert(device)
         case let .rawPacket(direction, data, decoded):
+            // The raw byte trace is a developer diagnostic only — never stored in release builds, so
+            // production never persists protocol hex/opcodes.
+            #if DEBUG
             context.insert(
                 RawPacketRow(
                     direction: direction,
@@ -100,6 +124,7 @@ final class EventPersistenceSubscriber {
                     confidence: decoded.confidence
                 )
             )
+            #endif
         case let .derivedUpdate(kind, entityType, entityId, payloadJSON):
             context.insert(DerivedUpdateRow(kind: kind, entityType: entityType, entityId: entityId, payloadJSON: payloadJSON))
         case let .activityUpdate(timestamp, steps, distanceMeters, calories):
@@ -121,12 +146,30 @@ final class EventPersistenceSubscriber {
                 entityId: row.id.uuidString,
                 payloadJSON: #"{"steps":\#(row.steps),"calories":\#(Int(row.calories)),"distance_m":\#(Int(row.distanceMeters))}"#
             ))
+        case let .activityBucket(timestamp, steps, distanceMeters):
+            // Per-quarter-hour ring history: sum into the day (calories omitted — unverified field).
+            // Reset a day's total only on the *first* bucket seen for it this sync run, so a stalled or
+            // aborted sync never leaves a day zeroed-but-empty (idempotent re-sync without up-front wipe).
+            let dayKey = Calendar.current.startOfDay(for: timestamp)
+            let resetThisDay = !activityDaysResetThisRun.contains(dayKey)
+            if resetThisDay { activityDaysResetThisRun.insert(dayKey) }
+            ActivityService.applyActivityBucket(date: timestamp, steps: steps, distanceMeters: distanceMeters, resetDay: resetThisDay, context: context)
+        case .activitySyncReset:
+            // A fresh ring history sync is starting: clear the per-run reset tracking so each day gets
+            // zeroed once on its first incoming bucket (not all days up front).
+            activityDaysResetThisRun.removeAll()
         case let .heartRateSample(bpm, timestamp):
             persistMeasurement(kind: .heartRate, value: Double(bpm), timestamp: timestamp, source: .live, kindLabel: "hr_sample")
         case let .spo2Result(value, timestamp):
             persistMeasurement(kind: .spo2, value: Double(value), timestamp: timestamp, source: .live, kindLabel: "spo2_result")
         case let .historyMeasurement(kind, value, timestamp):
             persistMeasurement(kind: kind, value: value, timestamp: timestamp, source: .history, kindLabel: "history_measurement")
+        case let .stressSample(value, timestamp):
+            persistMeasurement(kind: .stress, value: Double(value), timestamp: timestamp, source: .colmi, kindLabel: "stress_sample")
+        case let .hrvSample(value, timestamp):
+            persistMeasurement(kind: .hrv, value: Double(value), timestamp: timestamp, source: .colmi, kindLabel: "hrv_sample")
+        case let .temperatureSample(celsius, timestamp):
+            persistMeasurement(kind: .temperature, value: celsius, timestamp: timestamp, source: .colmi, kindLabel: "temperature_sample")
         case let .sleepTimeline(timestamp, stages):
             persistSleepTimeline(start: timestamp, stages: stages)
         case let .gpsPoint(sessionId, latitude, longitude, altitude, horizontalAccuracy, speed, course, accepted, rejectionReason, timestamp):
@@ -150,7 +193,7 @@ final class EventPersistenceSubscriber {
                     session.rejectedGpsPointCount += 1
                 }
             }
-        case .heartRateComplete, .spo2Progress, .spo2Complete, .workoutStarted, .workoutPaused, .workoutResumed, .workoutFinished, .coachTrace:
+        case .heartRateComplete, .spo2Progress, .spo2Complete, .syncProgress, .workoutStarted, .workoutPaused, .workoutResumed, .workoutFinished, .coachTrace:
             break
         }
         try? context.save()
@@ -159,8 +202,7 @@ final class EventPersistenceSubscriber {
     /// Persist one live/history measurement, record a derived-update audit row, and link it to
     /// an in-progress workout if one is recording. Mirrors `persistence._on_hr_sample`.
     private func persistMeasurement(kind: MeasurementKind, value: Double, timestamp: Date, source: MeasurementSource, kindLabel: String) {
-        let unit = kind == .heartRate ? "bpm" : "%"
-        let row = Measurement(kind: kind, value: value, unit: unit, timestamp: timestamp, source: source)
+        let row = Measurement(kind: kind, value: value, unit: kind.unit, timestamp: timestamp, source: source)
         context.insert(row)
         context.insert(DerivedUpdateRow(kind: kindLabel, entityType: "measurement", entityId: row.id.uuidString))
         _ = ActivityRecorderService.linkSample(

@@ -53,6 +53,10 @@ struct RingPacket {
 
 enum RingDecodedEvent: Sendable {
     case activityUpdate(timestamp: Date, steps: Int, distanceMeters: Double, calories: Double)
+    /// One intraday activity bucket (e.g. a Colmi quarter-hour history sample). Unlike the cumulative
+    /// `activityUpdate`, buckets are *summed* into the day — so live vs. history aggregate correctly.
+    /// Calories are intentionally omitted (the ring's calorie field is unverified).
+    case activityBucket(timestamp: Date, steps: Int, distanceMeters: Double)
     case heartRateSample(bpm: Int, timestamp: Date)
     case heartRateComplete(timestamp: Date)
     case spo2Progress(percent: Int?, timestamp: Date)
@@ -60,6 +64,11 @@ enum RingDecodedEvent: Sendable {
     case spo2Complete(timestamp: Date)
     case sleepTimeline(timestamp: Date, stages: [SleepStage])
     case historyMeasurement(kind: MeasurementKind, value: Double, timestamp: Date)
+    case stressSample(value: Int, timestamp: Date)
+    case hrvSample(value: Int, timestamp: Date)            // milliseconds
+    case temperatureSample(celsius: Double, timestamp: Date)
+    case historySyncProgress(stage: String)
+    case historySyncFinished
     case battery(percent: Int)
     case status(address: String?)
     case timeSyncAck(timestamp: Date)
@@ -69,6 +78,7 @@ enum RingDecodedEvent: Sendable {
     var kind: String {
         switch self {
         case .activityUpdate: return "activity"
+        case .activityBucket: return "activity_bucket"
         case .heartRateSample: return "hr_sample"
         case .heartRateComplete: return "hr_complete"
         case .spo2Progress: return "spo2_progress"
@@ -76,6 +86,11 @@ enum RingDecodedEvent: Sendable {
         case .spo2Complete: return "spo2_complete"
         case .sleepTimeline: return "sleep_timeline"
         case .historyMeasurement: return "history_measurement"
+        case .stressSample: return "stress_sample"
+        case .hrvSample: return "hrv_sample"
+        case .temperatureSample: return "temperature_sample"
+        case .historySyncProgress: return "history_sync_progress"
+        case .historySyncFinished: return "history_sync_finished"
         case .battery: return "battery"
         case .status: return "status"
         case .timeSyncAck: return "time_sync_ack"
@@ -99,10 +114,20 @@ enum RingDecodedEvent: Sendable {
         switch self {
         case let .activityUpdate(_, steps, distanceMeters, calories):
             return #"{"steps":\#(steps),"distance_m":\#(Int(distanceMeters)),"calories":\#(Int(calories))}"#
+        case let .activityBucket(_, steps, distanceMeters):
+            return #"{"steps":\#(steps),"distance_m":\#(Int(distanceMeters))}"#
         case let .heartRateSample(bpm, _):
             return #"{"bpm":\#(bpm)}"#
         case let .spo2Result(value, _):
             return #"{"spo2":\#(value)}"#
+        case let .stressSample(value, _):
+            return #"{"stress":\#(value)}"#
+        case let .hrvSample(value, _):
+            return #"{"hrv_ms":\#(value)}"#
+        case let .temperatureSample(celsius, _):
+            return #"{"temp_c":\#(celsius)}"#
+        case let .historySyncProgress(stage):
+            return #"{"stage":"\#(stage)"}"#
         case let .battery(percent):
             return #"{"percent":\#(percent)}"#
         case let .status(address):
