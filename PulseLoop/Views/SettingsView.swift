@@ -49,6 +49,8 @@ struct SettingsView: View {
                     }
                 }
 
+                HealthSettingsSection()
+
                 CoachSettingsSection()
 
                 SectionHeader(title: "About", action: nil)

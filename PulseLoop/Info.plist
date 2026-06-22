@@ -13,5 +13,9 @@
 	<array>
 		<string>com.pulseloop.coach.refresh</string>
 	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>PulseLoop reads your heart rate and health data to track your workouts and recovery.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>PulseLoop writes workout and health data to Apple Health to keep your fitness records up to date.</string>
 </dict>
 </plist>
