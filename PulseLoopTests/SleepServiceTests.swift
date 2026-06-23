@@ -65,7 +65,7 @@ final class SleepServiceTests: XCTestCase {
 
     func testBlocksOnlyForDayRange() throws {
         let context = try TestSupport.makeContext()
-        TestSupport.insertSleep(nightStart: night(0), stages: Array(repeating: .light, count: 60), into: context)
+        TestSupport.insertSleep(nightStart: night(-1), stages: Array(repeating: .light, count: 60), into: context)
         // Pin `now` to noon today so the Day window resolves to today regardless of when the suite runs
         // (before 4 AM the reference night is yesterday, which would exclude tonight's session).
         XCTAssertFalse(SleepService.sleepRange(.day, context: context, now: noonToday()).sessions.first?.blocks.isEmpty ?? true)
@@ -127,5 +127,45 @@ final class SleepServiceTests: XCTestCase {
         let blocks = SleepRepository.blocks(sessionId: session.id, context: context)
         XCTAssertTrue(blocks.contains { $0.startAt == start1 })
         XCTAssertTrue(blocks.contains { $0.startAt == start2 })
+    }
+
+    func testDeduplicateSleepSessions() throws {
+        let context = try TestSupport.makeContext()
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
+        
+        // Create duplicate sessions like the ones in the bug:
+        // Session 1: June 22 (duration 45m, start 23:15, end 00:00)
+        let start = cal.date(bySettingHour: 23, minute: 15, second: 0, of: yesterday)!
+        let end1 = cal.date(bySettingHour: 0, minute: 0, second: 0, of: today)!
+        let session1 = SleepSession(date: yesterday, startAt: start, endAt: end1, totalMinutes: 45)
+        context.insert(session1)
+        context.insert(SleepStageBlock(sessionId: session1.id, startAt: start, startMinute: 0, durationMinutes: 45, stage: .light))
+        
+        // Session 2: June 23 (duration 7h 45m, start 23:15, end 07:00)
+        let end2 = cal.date(bySettingHour: 7, minute: 0, second: 0, of: today)!
+        let session2 = SleepSession(date: today, startAt: start, endAt: end2, totalMinutes: 465)
+        context.insert(session2)
+        context.insert(SleepStageBlock(sessionId: session2.id, startAt: start, startMinute: 0, durationMinutes: 465, stage: .deep))
+        
+        try context.save()
+        
+        // Assert they both exist initially
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SleepSession>()).count, 2)
+        
+        // Trigger latestSleep which executes deduplication
+        let latest = SleepService.latestSleep(context: context)
+        
+        // Only one session should remain, and it should be the 465-minute one (7h 45m)
+        let sessions = try context.fetch(FetchDescriptor<SleepSession>())
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertEqual(sessions.first?.totalMinutes, 465)
+        XCTAssertEqual(latest?.session.totalMinutes, 465)
+        
+        // The orphaned block for the deleted session should be cleaned up
+        let blocks = try context.fetch(FetchDescriptor<SleepStageBlock>())
+        XCTAssertEqual(blocks.count, 1)
+        XCTAssertEqual(blocks.first?.sessionId, session2.id)
     }
 }

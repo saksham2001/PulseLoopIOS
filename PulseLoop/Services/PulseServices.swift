@@ -474,6 +474,7 @@ enum MetricsService {
 @MainActor
 enum SleepService {
     static func latestSleep(context: ModelContext) -> SleepSummary? {
+        deduplicateSleepSessions(context: context)
         guard let session = SleepRepository.latestSession(context: context) else { return nil }
         // Gate on *today* so the Today screen only shows a recent night; a session more than a
         // day old (with nothing newer) is hidden rather than shown as if it were last night.
@@ -491,6 +492,7 @@ enum SleepService {
     }
     
     static func sleepRange(_ range: SleepRangeKey, context: ModelContext, now: Date = Date()) -> SleepRangeSummary {
+        deduplicateSleepSessions(context: context)
         let expected = expectedNights(for: range)
         // Day view is "last night" — anchored on the current reference night, not
         // the latest recorded one. If nothing was captured we want to show the
@@ -555,6 +557,63 @@ enum SleepService {
             return Calendar.current.startOfDay(for: latest.date)
         }
         return Calendar.current.startOfDay(for: Date())
+    }
+
+    private static func deduplicateSleepSessions(context: ModelContext) {
+        let calendar = Calendar.current
+        
+        // 1. Re-align all session dates using the noon-to-noon boundary
+        let descriptor = FetchDescriptor<SleepSession>()
+        guard let allSessions = try? context.fetch(descriptor) else { return }
+        
+        var modified = false
+        for session in allSessions {
+            let hour = calendar.component(.hour, from: session.startAt)
+            let wakingDay = hour >= 12
+                ? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: session.startAt)) ?? session.startAt
+                : calendar.startOfDay(for: session.startAt)
+            let targetDate = calendar.startOfDay(for: wakingDay)
+            
+            if calendar.startOfDay(for: session.date) != targetDate {
+                session.date = targetDate
+                session.updatedAt = Date()
+                modified = true
+            }
+        }
+        
+        if modified {
+            try? context.save()
+        }
+        
+        // 2. Find and delete duplicate sessions for the same waking date, keeping the longest one
+        guard let updatedSessions = try? context.fetch(FetchDescriptor<SleepSession>()) else { return }
+        let grouped = Dictionary(grouping: updatedSessions) { calendar.startOfDay(for: $0.date) }
+        
+        for (_, sessionsForDate) in grouped where sessionsForDate.count > 1 {
+            let sorted = sessionsForDate.sorted { s1, s2 in
+                if s1.totalMinutes != s2.totalMinutes {
+                    return s1.totalMinutes > s2.totalMinutes
+                }
+                return s1.id.uuidString < s2.id.uuidString
+            }
+            
+            let toKeep = sorted[0]
+            let toDelete = sorted.suffix(from: 1)
+            
+            for session in toDelete {
+                // Delete associated stage blocks
+                let blockDescriptor = FetchDescriptor<SleepStageBlock>()
+                if let blocks = try? context.fetch(blockDescriptor) {
+                    let sessionBlocks = blocks.filter { $0.sessionId == session.id }
+                    for block in sessionBlocks {
+                        context.delete(block)
+                    }
+                }
+                context.delete(session)
+            }
+        }
+        
+        try? context.save()
     }
 }
 
