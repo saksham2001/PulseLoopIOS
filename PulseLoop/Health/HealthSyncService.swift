@@ -177,6 +177,7 @@ final class HealthSyncService {
         // Phase 1 — incremental sync of unsynced state.
         var counts = SyncCounts()
         do {
+            await syncUserProfile(context: context)
             try await syncMeasurements(context: context, counts: &counts)
             try await syncDailyActivity(sessions: finishedSessions, context: context, counts: &counts)
             try await syncSleep(context: context, counts: &counts)
@@ -215,6 +216,35 @@ final class HealthSyncService {
             } catch {
                 // Cancelled
             }
+        }
+    }
+
+    private func syncUserProfile(context: ModelContext) async {
+        let data = await fetchUserProfileData()
+        let descriptor = FetchDescriptor<UserProfile>()
+        guard let profile = (try? context.fetch(descriptor))?.first else { return }
+        
+        var modified = false
+        if let age = data.age, profile.age != age {
+            profile.age = age
+            modified = true
+        }
+        if let sex = data.sex, profile.sex != sex {
+            profile.sex = sex
+            modified = true
+        }
+        if let height = data.heightCm, profile.heightCm != height {
+            profile.heightCm = height
+            modified = true
+        }
+        if let weight = data.weightKg, profile.weightKg != weight {
+            profile.weightKg = weight
+            modified = true
+        }
+        
+        if modified {
+            profile.updatedAt = Date()
+            try? context.save()
         }
     }
 

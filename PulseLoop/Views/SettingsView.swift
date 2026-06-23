@@ -108,8 +108,15 @@ struct SettingsView: View {
                 SectionHeader(title: "Preferences", action: nil)
                 Toggle("Use Imperial Units", isOn: $useImperialUnits)
                     .tint(PulseColors.accent)
-                Toggle("Use Advanced Calories", isOn: $useAdvancedCalories)
-                    .tint(PulseColors.accent)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Use Advanced Calories", isOn: $useAdvancedCalories)
+                        .tint(PulseColors.accent)
+                    Text("Calculates energy expenditure using personalized MET values and heart rate (Keytel formula) instead of a flat 8 kcal/minute estimation.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(PulseColors.textMuted)
+                        .padding(.horizontal, 4)
+                }
 
                 SectionHeader(title: "About", action: nil)
                 StatusCopy(title: "Version", body: appVersionLabel)
