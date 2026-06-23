@@ -13,6 +13,9 @@ struct SettingsView: View {
     @AppStorage("useImperialUnits", store: UserDefaults(suiteName: WorkoutAppGroup.suite))
     private var useImperialUnits = false
 
+    @AppStorage("useAdvancedCalories", store: UserDefaults(suiteName: WorkoutAppGroup.suite))
+    private var useAdvancedCalories = false
+
     private var appVersionLabel: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
@@ -29,8 +32,56 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                SectionHeader(title: "Profile", action: nil)
-                StatusCopy(title: "Name", body: profiles.first?.name ?? "Not set")
+                SectionHeader(title: "Profile", action: "Edit")
+                    .onTapGesture {
+                        path.append(AppRoute.profileEdit)
+                    }
+                
+                Button {
+                    path.append(AppRoute.profileEdit)
+                } label: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text(profiles.first?.name ?? "Not set")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(PulseColors.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(PulseColors.textMuted)
+                        }
+                        
+                        if let profile = profiles.first, profile.age != nil || profile.heightCm != nil || profile.weightKg != nil {
+                            HStack(spacing: 16) {
+                                if let age = profile.age {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Age").font(.system(size: 10, weight: .bold)).foregroundStyle(PulseColors.textMuted).textCase(.uppercase)
+                                        Text("\(age) yrs").font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textSecondary)
+                                    }
+                                }
+                                
+                                if let h = profile.heightCm {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Height").font(.system(size: 10, weight: .bold)).foregroundStyle(PulseColors.textMuted).textCase(.uppercase)
+                                        Text(heightDisplayString(h)).font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textSecondary)
+                                    }
+                                }
+                                
+                                if let w = profile.weightKg {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Weight").font(.system(size: 10, weight: .bold)).foregroundStyle(PulseColors.textMuted).textCase(.uppercase)
+                                        Text(weightDisplayString(w)).font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textSecondary)
+                                    }
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(16)
+                    .background(PulseColors.card, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(PulseColors.borderSubtle, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
 
                 SectionHeader(title: "Ring", action: nil)
                 if ble.state == .connected {
@@ -56,6 +107,8 @@ struct SettingsView: View {
 
                 SectionHeader(title: "Preferences", action: nil)
                 Toggle("Use Imperial Units", isOn: $useImperialUnits)
+                    .tint(PulseColors.accent)
+                Toggle("Use Advanced Calories", isOn: $useAdvancedCalories)
                     .tint(PulseColors.accent)
 
                 SectionHeader(title: "About", action: nil)
@@ -94,6 +147,26 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .sheet(item: $diagnosticsURL) { url in
             DiagnosticsShareSheet(items: [url])
+        }
+    }
+
+    private func heightDisplayString(_ cm: Double) -> String {
+        if useImperialUnits {
+            let totalInches = cm / 2.54
+            let ft = Int(totalInches) / 12
+            let inch = Int(totalInches.rounded()) % 12
+            return "\(ft)'\(inch)\""
+        } else {
+            return String(format: "%.0f cm", cm)
+        }
+    }
+
+    private func weightDisplayString(_ kg: Double) -> String {
+        if useImperialUnits {
+            let lbs = kg * 2.20462
+            return String(format: "%.0f lbs", lbs)
+        } else {
+            return String(format: "%.1f kg", kg)
         }
     }
 }

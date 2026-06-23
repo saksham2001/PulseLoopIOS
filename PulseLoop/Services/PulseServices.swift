@@ -631,7 +631,46 @@ enum ActivityService {
         let spo2 = spo2Rows.map(\.value)
         let distance = gpsDistance(sessionId: session.id, context: context) ?? session.distanceMeters
         let duration = max(0, Int(endedAt.timeIntervalSince(session.startedAt) - session.totalPauseSeconds))
-        let calories = session.calories ?? max(0, Double(duration) / 60 * 8)
+        
+        let calories: Double
+        if let val = session.calories {
+            calories = val
+        } else if UserDefaults(suiteName: WorkoutAppGroup.suite)?.bool(forKey: "useAdvancedCalories") ?? false {
+            let profile = ProfileRepository.profile(context: context)
+            let weight = profile?.weightKg ?? 70.0
+            let age = profile?.age ?? 30
+            let sex = profile?.sex ?? "male"
+            
+            if !hr.isEmpty, let avgHR = average(hr) {
+                let durationMinutes = Double(duration) / 60.0
+                let eeKjPerMin: Double
+                if sex.lowercased() == "female" {
+                    eeKjPerMin = -20.4022 + (0.4472 * avgHR) - (0.1263 * weight) + (0.0740 * Double(age))
+                } else {
+                    eeKjPerMin = -55.0969 + (0.6309 * avgHR) + (0.1988 * weight) + (0.2017 * Double(age))
+                }
+                let kcalPerMin = eeKjPerMin / 4.184
+                calories = max(0, kcalPerMin * durationMinutes)
+            } else {
+                let met: Double
+                switch session.type.lowercased() {
+                case "walk": met = 3.5
+                case "run": met = 9.8
+                case "cycle": met = 7.5
+                case "gym": met = 5.0
+                case "squash": met = 7.3
+                case "sport": met = 6.0
+                case "yoga": met = 2.5
+                case "dance": met = 5.0
+                case "hike": met = 6.0
+                default: met = 4.5
+                }
+                let durationHours = Double(duration) / 3600.0
+                calories = max(0, met * weight * durationHours)
+            }
+        } else {
+            calories = max(0, Double(duration) / 60 * 8)
+        }
         
         session.endedAt = endedAt
         session.status = .finished

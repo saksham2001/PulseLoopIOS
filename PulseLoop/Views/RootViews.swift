@@ -68,6 +68,8 @@ struct RootAppView: View {
                     DebugView()
                 case .componentGallery:
                     ComponentGalleryView()
+                case .profileEdit:
+                    ProfileEditView(path: $path)
                 }
             }
         }

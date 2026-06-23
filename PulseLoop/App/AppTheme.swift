@@ -9,6 +9,7 @@ enum AppRoute: Hashable {
     case pairing
     case debug
     case componentGallery
+    case profileEdit
 }
 
 enum MainTab: String, CaseIterable, Identifiable {

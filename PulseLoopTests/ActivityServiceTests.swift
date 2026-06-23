@@ -63,4 +63,48 @@ final class ActivityServiceTests: XCTestCase {
         XCTAssertEqual(summary.durationSeconds, 20 * 60)
         XCTAssertEqual(session.status, .finished)
     }
+
+    func testAdvancedCalorieCalculationMET() throws {
+        let context = try TestSupport.makeContext()
+        
+        let defaults = UserDefaults(suiteName: WorkoutAppGroup.suite)
+        defaults?.set(true, forKey: "useAdvancedCalories")
+        defer {
+            defaults?.removeObject(forKey: "useAdvancedCalories")
+        }
+        
+        let profile = UserProfile(age: 30, sex: "male", heightCm: 178, weightKg: 80)
+        context.insert(profile)
+        try context.save()
+        
+        let session = ActivityRecorderService.start(type: "run", useGps: false, notes: nil, context: context)
+        let endedAt = session.startedAt.addingTimeInterval(3600)
+        let summary = ActivityService.finishSummary(for: session, endedAt: endedAt, context: context)
+        
+        XCTAssertEqual(summary.calories ?? 0.0, 784.0, accuracy: 0.1)
+    }
+
+    func testAdvancedCalorieCalculationKeytel() throws {
+        let context = try TestSupport.makeContext()
+        
+        let defaults = UserDefaults(suiteName: WorkoutAppGroup.suite)
+        defaults?.set(true, forKey: "useAdvancedCalories")
+        defer {
+            defaults?.removeObject(forKey: "useAdvancedCalories")
+        }
+        
+        let profile = UserProfile(age: 25, sex: "female", heightCm: 165, weightKg: 60)
+        context.insert(profile)
+        try context.save()
+        
+        let session = ActivityRecorderService.start(type: "run", useGps: false, notes: nil, context: context)
+        
+        let t0 = session.startedAt.addingTimeInterval(30)
+        TestSupport.insertMeasurement(kind: .heartRate, value: 150, timestamp: t0, source: .live, into: context)
+        
+        let endedAt = session.startedAt.addingTimeInterval(30 * 60)
+        let summary = ActivityService.finishSummary(for: session, endedAt: endedAt, context: context)
+        
+        XCTAssertEqual(summary.calories ?? 0.0, 293.6, accuracy: 0.5)
+    }
 }

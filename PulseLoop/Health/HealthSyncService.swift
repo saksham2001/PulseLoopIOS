@@ -73,7 +73,68 @@ final class HealthSyncService {
     private var readTypes: Set<HKObjectType> {
         var set = Set<HKObjectType>()
         shareTypes.forEach { set.insert($0) }
+        if let dob = HKObjectType.characteristicType(forIdentifier: .dateOfBirth) { set.insert(dob) }
+        if let sex = HKObjectType.characteristicType(forIdentifier: .biologicalSex) { set.insert(sex) }
+        if let height = HKQuantityType.quantityType(forIdentifier: .height) { set.insert(height) }
+        if let weight = HKQuantityType.quantityType(forIdentifier: .bodyMass) { set.insert(weight) }
         return set
+    }
+
+    struct HealthProfileData {
+        let age: Int?
+        let sex: String?
+        let heightCm: Double?
+        let weightKg: Double?
+    }
+
+    func fetchUserProfileData() async -> HealthProfileData {
+        var age: Int? = nil
+        if let dob = try? store.dateOfBirthComponents() {
+            if let birthDate = Calendar.current.date(from: dob) {
+                let ageComponents = Calendar.current.dateComponents([.year], from: birthDate, to: Date())
+                age = ageComponents.year
+            }
+        }
+
+        var sexString: String? = nil
+        if let biologicalSexWrapper = try? store.biologicalSex() {
+            switch biologicalSexWrapper.biologicalSex {
+            case .female: sexString = "female"
+            case .male: sexString = "male"
+            case .other: sexString = "other"
+            default: sexString = nil
+            }
+        }
+
+        let heightType = HKQuantityType.quantityType(forIdentifier: .height)
+        let heightCm: Double? = await withCheckedContinuation { continuation in
+            guard let heightType else {
+                continuation.resume(returning: nil)
+                return
+            }
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(sampleType: heightType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { _, samples, _ in
+                let val = (samples?.first as? HKQuantitySample)?.quantity.doubleValue(for: HKUnit.meterUnit(with: .centi))
+                continuation.resume(returning: val)
+            }
+            store.execute(query)
+        }
+
+        let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass)
+        let weightKg: Double? = await withCheckedContinuation { continuation in
+            guard let weightType else {
+                continuation.resume(returning: nil)
+                return
+            }
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(sampleType: weightType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { _, samples, _ in
+                let val = (samples?.first as? HKQuantitySample)?.quantity.doubleValue(for: HKUnit.gramUnit(with: .kilo))
+                continuation.resume(returning: val)
+            }
+            store.execute(query)
+        }
+
+        return HealthProfileData(age: age, sex: sexString, heightCm: heightCm, weightKg: weightKg)
     }
 
     // MARK: - Sync
