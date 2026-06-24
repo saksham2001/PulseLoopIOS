@@ -47,6 +47,9 @@ struct PulseLoopApp: App {
         }
         self.container = container
 
+        // One-time cleanup of activity totals inflated by the old accumulator bug.
+        ActivityService.migrateInflatedActivityIfNeeded(context: container.mainContext)
+
         // Don't bring up CoreBluetooth under tests (see `isRunningUnitTests`).
         let client = RingBLEClient(startManager: !runningTests)
         let coordinator = RingSyncCoordinator(client: client, context: container.mainContext)
