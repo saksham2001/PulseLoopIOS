@@ -19,6 +19,16 @@ final class RingSyncCoordinator {
     private(set) var spo2State: MeasureState = .idle
     private(set) var lastSyncAt: Date?
 
+    /// The latest history-sync stage label (e.g. "Syncing sleep…"), or nil when not syncing.
+    /// Driven by `.syncProgress` events; cleared on the `"done"` stage, on disconnect, or by a
+    /// safety timeout so a dropped completion signal can't leave the progress bar stuck on.
+    private(set) var syncStage: String?
+    /// Whether a ring data sync is in flight — drives the thin progress bar under the header.
+    var isSyncing: Bool { syncStage != nil }
+    private var syncTimeoutTask: Task<Void, Never>?
+    /// Hard ceiling on how long the bar stays up without a fresh progress event.
+    private let syncStallTimeout: UInt64 = 20
+
     /// Latest live values, mirrored for UI (e.g. the live workout screen) without a query.
     private(set) var latestHRValue: Int?
     private(set) var latestSpO2Value: Int?
@@ -84,6 +94,9 @@ final class RingSyncCoordinator {
         }
         engine?.runStartup()
         lastSyncAt = Date()
+        // Show the progress bar immediately; the engine's own `.syncProgress` stages refine the
+        // label and the `"done"` stage (or the stall timeout) clears it.
+        updateSync(stage: "Syncing…")
     }
 
     /// Live "Save" from the Measurement settings screen: persist nothing here (the view owns the model
@@ -253,8 +266,41 @@ final class RingSyncCoordinator {
             if let percent { latestSpO2Value = percent }
         case .deviceStateChanged(.connected, _):
             lastSyncAt = Date()
+        case let .deviceStateChanged(state, _):
+            // Any non-connected transition (disconnect / failure) ends an in-flight sync.
+            if state != .connected { endSync() }
+        case let .syncProgress(stage):
+            updateSync(stage: stage)
         default:
             break
+        }
+    }
+
+    // MARK: - Sync progress
+
+    /// Apply a `.syncProgress` stage. The `"done"` sentinel (emitted on history-sync finish) ends
+    /// the sync; any other stage keeps the bar up and re-arms the stall timeout.
+    private func updateSync(stage: String) {
+        guard stage != "done" else { endSync(); return }
+        syncStage = stage
+        armSyncTimeout()
+    }
+
+    private func endSync() {
+        syncTimeoutTask?.cancel()
+        syncTimeoutTask = nil
+        syncStage = nil
+    }
+
+    /// Re-arm a one-shot timeout so the bar can't linger if a final `.syncProgress("done")` never
+    /// arrives (e.g. the ring drops mid-sync without a clean disconnect event).
+    private func armSyncTimeout() {
+        syncTimeoutTask?.cancel()
+        syncTimeoutTask = Task { [weak self] in
+            let seconds = self?.syncStallTimeout ?? 20
+            try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.endSync()
         }
     }
 }

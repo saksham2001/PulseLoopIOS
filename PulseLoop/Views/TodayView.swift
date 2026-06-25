@@ -110,23 +110,6 @@ struct TodayView: View {
                     }
                     .buttonStyle(.plain)
                 }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("TODAY SO FAR")
-                        .font(.system(size: 11, weight: .medium)).tracking(1.4)
-                        .foregroundStyle(PulseColors.textMuted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if summary.timeline.isEmpty {
-                        InlineEmptyState(title: "No events yet", message: "Sync your ring to see activity here.")
-                            .background(PulseColors.card)
-                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
-                    } else {
-                        ForEach(summary.timeline.prefix(5).map { $0 }) { event in
-                            EventRow(event: event)
-                        }
-                    }
-                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 96)
@@ -152,37 +135,6 @@ struct TodayView: View {
 private struct MeasuringItem: Identifiable {
     let kind: MeasurementSheet.Kind
     var id: Int { kind == .hr ? 0 : 1 }
-}
-
-struct EventRow: View {
-    let event: TimelineEvent
-    var body: some View {
-        PulseCard(padding: 12) {
-            HStack {
-                Circle().fill(metricColor).frame(width: 9, height: 9)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(event.title)
-                        .font(.system(size: 14, weight: .medium))
-                    Text(event.detail)
-                        .font(.caption)
-                        .foregroundStyle(PulseColors.textMuted)
-                }
-                Spacer()
-                Text(event.timestamp, style: .time)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(PulseColors.textMuted)
-            }
-        }
-    }
-
-    private var metricColor: Color {
-        switch event.metric {
-        case "hr": return PulseColors.heartRate
-        case "spo2": return PulseColors.spo2
-        case "sleep": return PulseColors.sleep
-        default: return PulseColors.accent
-        }
-    }
 }
 
 /// Today hero + delta derivation, ported from `frontend/src/screens/Today.tsx`.

@@ -111,6 +111,14 @@ final class EventPersistenceSubscriber {
     private let context: ModelContext
     private var task: Task<Void, Never>?
 
+    #if DEBUG
+    /// Rolling cap for the DEBUG-only raw-packet trace, and how often we prune (every Nth insert,
+    /// so we don't pay a fetch on every packet during a sync burst).
+    private let rawPacketCap = 2_000
+    private let rawPacketPruneInterval = 200
+    private var rawPacketInsertsSincePrune = 0
+    #endif
+
     init(context: ModelContext) {
         self.context = context
     }
@@ -173,6 +181,13 @@ final class EventPersistenceSubscriber {
                     confidence: decoded.confidence
                 )
             )
+            // Keep the debug trace a rolling window so it can't grow without bound. Prune only
+            // every Nth insert to avoid a fetch on every packet during a sync burst.
+            rawPacketInsertsSincePrune += 1
+            if rawPacketInsertsSincePrune >= rawPacketPruneInterval {
+                rawPacketInsertsSincePrune = 0
+                DebugRepository.pruneRawPackets(maxRows: rawPacketCap, context: context)
+            }
             #endif
         case let .derivedUpdate(kind, entityType, entityId, payloadJSON):
             context.insert(DerivedUpdateRow(kind: kind, entityType: entityType, entityId: entityId, payloadJSON: payloadJSON))

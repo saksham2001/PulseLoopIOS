@@ -107,14 +107,6 @@ struct TrendsSummary {
     let spo2Samples24h: [MetricSample]
 }
 
-struct TimelineEvent: Identifiable {
-    let id = UUID()
-    let title: String
-    let detail: String
-    let timestamp: Date
-    let metric: String?
-}
-
 struct SleepSummary {
     let session: SleepSession
     let lightMinutes: Int
@@ -200,7 +192,6 @@ struct TodaySummary {
     var batteryPercent: Int?
     var deviceState: RingConnectionState
     var trends: TrendsSummary
-    var timeline: [TimelineEvent]
     var metricStates: [MetricKey: MetricState]
     var calibration: CalibrationState
     var goals: GoalsSummary
