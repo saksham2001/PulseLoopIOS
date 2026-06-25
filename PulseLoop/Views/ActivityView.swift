@@ -7,7 +7,10 @@ struct ActivityView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(RingSyncCoordinator.self) private var coordinator
     @Query(sort: \ActivitySession.startedAt, order: .reverse) private var sessions: [ActivitySession]
+    @Query private var profiles: [UserProfile]
     @Binding var path: NavigationPath
+
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     @State private var stepsRange: MetricRange = .sevenDays
     @State private var distanceRange: MetricRange = .sevenDays
@@ -125,8 +128,8 @@ struct ActivityView: View {
                     MetricCardButton(
                         metric: "distance",
                         label: "Distance",
-                        value: summary.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? "—",
-                        unit: summary.distanceMeters == nil ? nil : "km",
+                        value: summary.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units).value } ?? "—",
+                        unit: summary.distanceMeters.map { _ in UnitsFormatter.distance(meters: 0, units: units).unit },
                         color: PulseColors.distance
                     )
                     MetricCardButton(

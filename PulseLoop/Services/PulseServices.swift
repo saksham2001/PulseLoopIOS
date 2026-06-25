@@ -19,6 +19,11 @@ enum MetricsService {
         let spo2Rows = measurements.filter { $0.kind == .spo2 }
         let hrSamples = samplesSinceCutoff(rows: hrRows, range: .twentyFourHours, includeAll: isDemo)
         let spo2Samples = samplesSinceCutoff(rows: spo2Rows, range: .twentyFourHours, includeAll: isDemo)
+        // Display copies for the Today sparklines respect the user's graph-resolution setting (the raw
+        // copies above stay untouched for stats/timeline below). Full resolution → identity.
+        let buckets24h = MetricPrefsStore.shared.settings.resolution.targetBuckets(for: .twentyFourHours)
+        let hrSamplesDisplay = MetricDownsampler.bucketAverage(hrSamples, targetBuckets: buckets24h)
+        let spo2SamplesDisplay = MetricDownsampler.bucketAverage(spo2Samples, targetBuckets: buckets24h)
         let latestHR = hrRows.last
         let latestSpO2 = spo2Rows.last
         let calibration = calibrationState(device: device, activityRows: activityRows, measurements: measurements, isDemo: isDemo)
@@ -30,8 +35,8 @@ enum MetricsService {
             steps7d: alignedRows.map { DailyMetricPoint(date: $0.date, value: Double($0.steps)) },
             calories7d: alignedRows.map { DailyMetricPoint(date: $0.date, value: $0.calories) },
             distance7d: alignedRows.map { DailyMetricPoint(date: $0.date, value: $0.distanceMeters) },
-            hrSamples24h: hrSamples,
-            spo2Samples24h: spo2Samples
+            hrSamples24h: hrSamplesDisplay,
+            spo2Samples24h: spo2SamplesDisplay
         )
         let metricStates = buildMetricStates(MetricStateInputs(
             today: today,
@@ -79,22 +84,27 @@ enum MetricsService {
     }
     
     static func metricRange(metric: MetricKey, range: MetricRange, context: ModelContext) -> [MetricSample] {
+        let raw: [MetricSample]
         switch metric {
         case .heartRate:
-            return rangeSamples(kind: .heartRate, range: range, context: context)
+            raw = rangeSamples(kind: .heartRate, range: range, context: context)
         case .spo2:
-            return rangeSamples(kind: .spo2, range: range, context: context)
+            raw = rangeSamples(kind: .spo2, range: range, context: context)
         case .stress:
-            return rangeSamples(kind: .stress, range: range, context: context)
+            raw = rangeSamples(kind: .stress, range: range, context: context)
         case .hrv:
-            return rangeSamples(kind: .hrv, range: range, context: context)
+            raw = rangeSamples(kind: .hrv, range: range, context: context)
         case .temperature:
-            return rangeSamples(kind: .temperature, range: range, context: context)
+            raw = rangeSamples(kind: .temperature, range: range, context: context)
         case .steps, .calories, .distance, .activeMinutes:
-            return activitySamples(metric: metric, range: range, context: context)
+            raw = activitySamples(metric: metric, range: range, context: context)
         default:
             return []
         }
+        // Display-only smoothing: bucket-average dense series per the user's resolution preference.
+        // `.full` (targetBuckets 0) is identity; raw stored rows are never modified.
+        let targetBuckets = MetricPrefsStore.shared.settings.resolution.targetBuckets(for: range)
+        return MetricDownsampler.bucketAverage(raw, targetBuckets: targetBuckets)
     }
     
     static func fetchMeasurements(_ context: ModelContext) -> [Measurement] {
@@ -116,10 +126,28 @@ enum MetricsService {
         return caps
     }
 
+    /// Capabilities of the device the UI should reason about *right now*. Prefers the live connection's
+    /// declared set (so plugging in a 56ff immediately hides Colmi-only controls), and falls back to the
+    /// last stored device row when nothing is connected.
+    static func activeCapabilities(context: ModelContext, ble: RingBLEClient?) -> Set<WearableCapability> {
+        if let ble, ble.state == .connected, !ble.activeCapabilities.isEmpty {
+            return ble.activeCapabilities
+        }
+        return deviceCapabilities(context)
+    }
+
     /// Whether a metric should be shown for the current device.
     static func supports(_ metric: MetricKey, context: ModelContext) -> Bool {
         guard let required = metric.requiredCapability else { return true }
         return deviceCapabilities(context).contains(required)
+    }
+
+    /// Whether a metric should be rendered right now: the device must support it (capability gate
+    /// **first**, so a hidden-but-unsupported vital can never be force-shown) AND the user must not have
+    /// hidden it. Every vitals call site funnels through this so visibility stays consistent app-wide.
+    static func isVisible(_ metric: MetricKey, context: ModelContext) -> Bool {
+        guard supports(metric, context: context) else { return false }
+        return !MetricPrefsStore.shared.isHidden(metric)
     }
     
     static func fetchDevices(_ context: ModelContext) -> [Device] {

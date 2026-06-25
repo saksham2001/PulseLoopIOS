@@ -6,6 +6,7 @@ struct TodayView: View {
     @Environment(RingSyncCoordinator.self) private var coordinator
     @Query(filter: #Predicate<CoachSummary> { $0.kind == "today" }, sort: \CoachSummary.updatedAt, order: .reverse)
     private var todaySummaries: [CoachSummary]
+    @Query private var profiles: [UserProfile]
     @Binding var path: NavigationPath
     @Binding var selectedTab: MainTab
     @State private var measuring: MeasurementSheet.Kind?
@@ -13,6 +14,7 @@ struct TodayView: View {
 
     private var summaryService: CoachSummaryService { CoachSummaryService(modelContext: modelContext) }
     private var coachEnabled: Bool { coachStore.settings.coachMasterEnabled }
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
         let summary = MetricsService.buildTodaySummary(context: modelContext)
@@ -46,22 +48,26 @@ struct TodayView: View {
                         delta: TodayInsights.deltaFor(summary, value: summary.steps.map(Double.init), series: summary.trends.steps7d.map(\.value)),
                         sparkline: summary.trends.steps7d.map(\.value)
                     )
-                    MetricCardButton(
-                        metric: "hr", label: "Heart rate",
-                        value: TodayInsights.hrRangeLabel(summary.trends.hrSamples24h, summary.latestHeartRate?.value),
-                        unit: hasHR(summary) ? "bpm" : nil,
-                        color: PulseColors.heartRate,
-                        sparkline: summary.trends.hrSamples24h.map(\.value),
-                        onTap: caps.contains(.manualHeartRate) ? { measuring = .hr } : nil
-                    )
-                    MetricCardButton(
-                        metric: "spo2", label: "SpO₂",
-                        value: TodayInsights.averageLabel(summary.trends.spo2Samples24h, summary.latestSpO2?.value),
-                        unit: hasSpO2(summary) ? "%" : nil,
-                        color: PulseColors.spo2,
-                        sparkline: summary.trends.spo2Samples24h.map(\.value),
-                        onTap: caps.contains(.manualSpo2) ? { measuring = .spo2 } : nil
-                    )
+                    if MetricsService.isVisible(.heartRate, context: modelContext) {
+                        MetricCardButton(
+                            metric: "hr", label: "Heart rate",
+                            value: TodayInsights.hrRangeLabel(summary.trends.hrSamples24h, summary.latestHeartRate?.value),
+                            unit: hasHR(summary) ? "bpm" : nil,
+                            color: PulseColors.heartRate,
+                            sparkline: summary.trends.hrSamples24h.map(\.value),
+                            onTap: caps.contains(.manualHeartRate) ? { measuring = .hr } : nil
+                        )
+                    }
+                    if MetricsService.isVisible(.spo2, context: modelContext) {
+                        MetricCardButton(
+                            metric: "spo2", label: "SpO₂",
+                            value: TodayInsights.averageLabel(summary.trends.spo2Samples24h, summary.latestSpO2?.value),
+                            unit: hasSpO2(summary) ? "%" : nil,
+                            color: PulseColors.spo2,
+                            sparkline: summary.trends.spo2Samples24h.map(\.value),
+                            onTap: caps.contains(.manualSpo2) ? { measuring = .spo2 } : nil
+                        )
+                    }
                     MetricCardButton(
                         metric: "sleep", label: "Sleep",
                         value: summary.sleep.map { SleepFormat.duration($0.session.totalMinutes) } ?? "—",
@@ -69,18 +75,20 @@ struct TodayView: View {
                         sparkline: summary.sleep.map { [Double($0.lightMinutes), Double($0.deepMinutes), Double($0.awakeMinutes)] } ?? [],
                         onTap: { selectedTab = .sleep }
                     )
-                    MetricCardButton(
-                        metric: "calories", label: "Calories",
-                        value: summary.calories.map { Int($0).formatted() } ?? "—",
-                        unit: summary.calories == nil ? nil : "kcal",
-                        color: PulseColors.calories,
-                        delta: TodayInsights.deltaFor(summary, value: summary.calories, series: summary.trends.calories7d.map(\.value)),
-                        sparkline: summary.trends.calories7d.map(\.value)
-                    )
+                    if MetricsService.isVisible(.calories, context: modelContext) {
+                        MetricCardButton(
+                            metric: "calories", label: "Calories",
+                            value: summary.calories.map { Int($0).formatted() } ?? "—",
+                            unit: summary.calories == nil ? nil : "kcal",
+                            color: PulseColors.calories,
+                            delta: TodayInsights.deltaFor(summary, value: summary.calories, series: summary.trends.calories7d.map(\.value)),
+                            sparkline: summary.trends.calories7d.map(\.value)
+                        )
+                    }
                     MetricCardButton(
                         metric: "distance", label: "Distance",
-                        value: summary.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? "—",
-                        unit: summary.distanceMeters == nil ? nil : "km",
+                        value: summary.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units).value } ?? "—",
+                        unit: summary.distanceMeters.map { _ in UnitsFormatter.distance(meters: 0, units: units).unit },
                         color: PulseColors.distance,
                         delta: TodayInsights.deltaFor(summary, value: summary.distanceMeters.map { $0 / 1000 }, series: summary.trends.distance7d.map { $0.value / 1000 }),
                         sparkline: summary.trends.distance7d.map(\.value)

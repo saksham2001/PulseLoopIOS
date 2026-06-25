@@ -65,6 +65,11 @@ struct ColmiEncoder {
     }
     /// Temperature pref has an extra `0x03` byte before the read/write flag.
     func readTempPref() -> [UInt8] { [ColmiCommandID.autoTempPref, 0x03, ColmiCommandID.prefRead] }
+    /// Enable/disable all-day temperature monitoring. Mirrors `readTempPref`'s extra `0x03` framing byte
+    /// before the write flag. Verified against hardware (`3a 03 02 01` was acked by a Colmi ring).
+    func writeTempPref(enabled: Bool) -> [UInt8] {
+        [ColmiCommandID.autoTempPref, 0x03, ColmiCommandID.prefWrite, enabled ? 0x01 : 0x00]
+    }
     func readGoals() -> [UInt8] { [ColmiCommandID.goals, ColmiCommandID.prefRead] }
 
     // MARK: Measurements / actions

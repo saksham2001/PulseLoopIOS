@@ -12,6 +12,7 @@ enum ModelContainerFactory {
             DerivedUpdateRow.self,
             UserProfile.self,
             UserGoal.self,
+            DeviceMeasurementConfig.self,
             ActivitySession.self,
             ActivitySample.self,
             ActivityBucketSample.self,

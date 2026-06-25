@@ -586,13 +586,15 @@ enum ActivityMeta {
             : String(format: "%d:%02d", m, sec)
     }
 
-    /// Pace in min/km from distance + duration; nil when not meaningful.
-    static func pace(distanceMeters: Double?, durationSeconds: Int?) -> String? {
+    /// Pace from distance + duration; nil when not meaningful. In the user's units (min/km or min/mi),
+    /// defaulting to metric so existing callers compile unchanged.
+    static func pace(distanceMeters: Double?, durationSeconds: Int?, units: UnitsPreference = .metric) -> String? {
         guard let distanceMeters, let durationSeconds, distanceMeters >= 50 else { return nil }
         let paceSecPerKm = Double(durationSeconds) / (distanceMeters / 1000)
-        let m = Int(paceSecPerKm) / 60
-        let s = Int(paceSecPerKm.rounded()) % 60
-        return String(format: "%d:%02d /km", m, s)
+        let paceSec = UnitsFormatter.paceSeconds(perKmSeconds: paceSecPerKm, units: units)
+        let m = Int(paceSec) / 60
+        let s = Int(paceSec.rounded()) % 60
+        return String(format: "%d:%02d %@", m, s, UnitsFormatter.paceUnit(units))
     }
 }
 
