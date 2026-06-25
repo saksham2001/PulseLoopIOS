@@ -69,6 +69,8 @@ struct WorkoutPrefs: Codable, Equatable {
 @MainActor
 @Observable
 final class WorkoutPrefsStore {
+    nonisolated deinit {}   // skip the main-actor isolated-deinit hop (crashes on older sim runtimes)
+
     static let shared = WorkoutPrefsStore()
 
     private static let storageKey = "pulseloop.workoutprefs.v1"

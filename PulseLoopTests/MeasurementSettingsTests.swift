@@ -139,7 +139,8 @@ final class MeasurementSettingsTests: XCTestCase {
     }
 
     private func makeEphemeralDefaults() -> UserDefaults {
-        let suite = "test.metricprefs.\(UUID().uuidString)"
-        return UserDefaults(suiteName: suite) ?? .standard
+        // A bare UUID suite name (matching the Coach tests) — a dotted/prefixed suite name can abort
+        // `UserDefaults(suiteName:)` on stricter CI runners.
+        UserDefaults(suiteName: UUID().uuidString)!
     }
 }

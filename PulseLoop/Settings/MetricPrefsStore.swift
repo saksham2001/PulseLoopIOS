@@ -76,6 +76,8 @@ struct MetricPrefs: Codable, Equatable {
 @MainActor
 @Observable
 final class MetricPrefsStore {
+    nonisolated deinit {}   // skip the main-actor isolated-deinit hop (crashes on older sim runtimes)
+
     static let shared = MetricPrefsStore()
 
     private static let storageKey = "pulseloop.metricprefs.v1"
