@@ -122,6 +122,8 @@ struct StaleSessionRecoveryCard: View {
 
 struct WorkoutRow: View {
     let session: ActivitySession
+    @Query private var profiles: [UserProfile]
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
     var body: some View {
         PulseCard {
             HStack {
@@ -141,7 +143,8 @@ struct WorkoutRow: View {
                         .font(.caption)
                         .foregroundStyle(PulseColors.textSecondary)
                     if let distance = session.distanceMeters {
-                        Text(String(format: "%.2f km", distance / 1000))
+                        let d = UnitsFormatter.distance(meters: distance, units: units)
+                        Text("\(d.value) \(d.unit)")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(PulseColors.textMuted)
                     }
@@ -295,6 +298,8 @@ struct RecordSelectView: View {
         .background(PulseColors.background.ignoresSafeArea())
         .navigationTitle("Record")
         .navigationBarTitleDisplayMode(.inline)
+        // Seed the GPS toggle from the user's Activity-Tracking default (still per-workout overridable).
+        .onAppear { useGps = WorkoutPrefsStore.shared.settings.useGpsByDefault }
     }
 }
 
@@ -307,10 +312,13 @@ struct RecordLiveView: View {
     @Environment(GpsRouteRecorder.self) private var gps
     @Environment(LiveWorkoutManager.self) private var liveWorkout
     @Query private var sessions: [ActivitySession]
+    @Query private var profiles: [UserProfile]
     let sessionId: UUID
     @Binding var path: NavigationPath
     @State private var confirmFinish = false
     @State private var confirmDiscard = false
+
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
         if let session = sessions.first(where: { $0.id == sessionId }) {
@@ -492,12 +500,14 @@ struct RecordLiveView: View {
     private func distanceLabel(points: [ActivityGpsPoint], session: ActivitySession) -> String {
         guard session.useGps else { return "—" }
         let meters = routeDistance(points)
-        return meters > 0 ? String(format: "%.2f km", meters / 1000) : "—"
+        guard meters > 0 else { return "—" }
+        let d = UnitsFormatter.distance(meters: meters, units: units)
+        return "\(d.value) \(d.unit)"
     }
 
     private func paceLabel(points: [ActivityGpsPoint], elapsedSec: Int, session: ActivitySession) -> String {
         guard session.useGps else { return "—" }
-        return ActivityMeta.pace(distanceMeters: routeDistance(points), durationSeconds: elapsedSec) ?? "—"
+        return ActivityMeta.pace(distanceMeters: routeDistance(points), durationSeconds: elapsedSec, units: units) ?? "—"
     }
 
     private func routeDistance(_ points: [ActivityGpsPoint]) -> Double {
@@ -681,9 +691,12 @@ struct RecordSummaryView: View {
 /// effort/notes + Done, or read-only notes + Delete).
 struct WorkoutMetricsSections: View {
     @Environment(\.modelContext) private var modelContext
+    @Query private var profiles: [UserProfile]
     let session: ActivitySession
     /// Shows the "WORKOUT SAVED" badge in the header (only meaningful right after recording).
     var savedBadge: Bool = false
+
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
         let points = ActivityRepository.gpsPoints(sessionId: session.id, context: modelContext)
@@ -697,7 +710,7 @@ struct WorkoutMetricsSections: View {
         VStack(spacing: 16) {
             header
 
-            SummaryHeroBand(session: session, durationSeconds: duration)
+            SummaryHeroBand(session: session, durationSeconds: duration, units: units)
 
             statsGrid(elevationGain: elevation?.gain)
 
@@ -820,18 +833,20 @@ struct WorkoutMetricsSections: View {
 private struct SummaryHeroBand: View {
     let session: ActivitySession
     let durationSeconds: Int?
+    let units: UnitsPreference
 
     private struct Metric { let value: String; let label: String; let tint: Color }
 
     private var metrics: [Metric] {
         let dur = durationSeconds.map { ActivityMeta.duration($0) } ?? "—"
         if session.useGps {
-            let dist = session.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? "—"
-            let pace = ActivityMeta.pace(distanceMeters: session.distanceMeters, durationSeconds: durationSeconds)
+            let d = session.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units) }
+            let paceUnit = UnitsFormatter.paceUnit(units)
+            let pace = ActivityMeta.pace(distanceMeters: session.distanceMeters, durationSeconds: durationSeconds, units: units)
             return [
-                Metric(value: dist, label: "KM", tint: PulseColors.distance),
+                Metric(value: d?.value ?? "—", label: (d?.unit ?? "km").uppercased(), tint: PulseColors.distance),
                 Metric(value: dur, label: "DURATION", tint: PulseColors.textPrimary),
-                Metric(value: pace?.replacingOccurrences(of: " /km", with: "") ?? "—", label: "PACE /KM", tint: PulseColors.accent)
+                Metric(value: pace?.replacingOccurrences(of: " \(paceUnit)", with: "") ?? "—", label: "PACE \(paceUnit)", tint: PulseColors.accent)
             ]
         } else {
             let cals = session.calories.map { "\(Int($0))" } ?? "—"

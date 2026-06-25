@@ -6,6 +6,17 @@ enum AppRoute: Hashable {
     case recordLive(UUID)
     case recordSummary(UUID)
     case settings
+    // Settings detail screens (the top-level `settings` route is the category list).
+    case settingsProfile
+    case settingsNotifications
+    case settingsCoach
+    case settingsWearable
+    case settingsMeasurement
+    case settingsActivityTracking
+    case settingsGoals
+    case settingsVitals
+    case settingsPrivacyData
+    case settingsAbout
     case pairing
     case debug
     case componentGallery

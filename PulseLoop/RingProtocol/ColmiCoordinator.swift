@@ -45,6 +45,7 @@ final class ColmiCoordinator: WearableCoordinator {
         .remSleep, .stress, .hrv, .temperature,
         .manualHeartRate, .realtimeHeartRate, .realtimeSteps,
         .findDevice, .powerOff, .factoryReset,
+        .measurementInterval,
     ]
 
     let iconSystemName = "circle.circle.fill"
