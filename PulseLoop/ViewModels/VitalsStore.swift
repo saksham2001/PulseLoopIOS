@@ -16,6 +16,9 @@ final class VitalsStore {
     private(set) var hrvSamples: [MetricSample]
     private(set) var tempSamples: [MetricSample]
     private(set) var capabilities: Set<WearableCapability>
+    /// Which metric cards are visible (capability + user-hidden), computed once per rebuild so the
+    /// view doesn't call `isVisible` (a device fetch each) five times per render.
+    private(set) var visibleMetrics: Set<MetricKey>
 
     private let modelContext: ModelContext
     private var signature: String = ""
@@ -29,6 +32,7 @@ final class VitalsStore {
         self.hrvSamples = MetricsService.metricRange(metric: .hrv, range: .twentyFourHours, context: modelContext)
         self.tempSamples = MetricsService.metricRange(metric: .temperature, range: .twentyFourHours, context: modelContext)
         self.capabilities = MetricsService.deviceCapabilities(modelContext)
+        self.visibleMetrics = Self.computeVisible(context: modelContext)
         self.signature = Self.currentSignature(context: modelContext)
     }
 
@@ -50,7 +54,16 @@ final class VitalsStore {
         hrvSamples = MetricsService.metricRange(metric: .hrv, range: .twentyFourHours, context: modelContext)
         tempSamples = MetricsService.metricRange(metric: .temperature, range: .twentyFourHours, context: modelContext)
         capabilities = MetricsService.deviceCapabilities(modelContext)
+        visibleMetrics = Self.computeVisible(context: modelContext)
         signature = sig
+    }
+
+    private static func computeVisible(context: ModelContext) -> Set<MetricKey> {
+        var set: Set<MetricKey> = []
+        for metric in [MetricKey.heartRate, .spo2, .stress, .hrv, .temperature] where MetricsService.isVisible(metric, context: context) {
+            set.insert(metric)
+        }
+        return set
     }
 
     /// Cheap fingerprint of the latest reading of every vitals metric + device state. A change here

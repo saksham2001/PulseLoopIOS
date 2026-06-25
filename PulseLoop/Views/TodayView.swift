@@ -9,6 +9,8 @@ struct TodayView: View {
     @Query private var profiles: [UserProfile]
     @Binding var path: NavigationPath
     @Binding var selectedTab: MainTab
+    /// Whether the Today tab is on screen (adjacent tabs stay alive under the `.page` TabView).
+    let isActive: Bool
     @State private var measuring: MeasurementSheet.Kind?
     @State private var coachStore = CoachSettingsStore.shared
     @State private var dataChange = PulseDataChange.shared
@@ -128,9 +130,11 @@ struct TodayView: View {
             if coachEnabled { await summaryService.refreshTodayIfNeeded() }
         }
         // Keep the dashboard live while on-screen: the persistence layer bumps one coalesced token
-        // per batched save, so we refresh once per sync burst (not per packet). The store's
-        // signature check still makes each refresh cheap — it rebuilds only when data changed.
-        .onChange(of: dataChange.token) { _, _ in store?.refreshIfNeeded() }
+        // per batched save, so we refresh once per sync burst (not per packet) — and only while this
+        // tab is visible. The store's signature check still makes each refresh a cheap no-op when
+        // nothing changed.
+        .onChange(of: dataChange.token) { _, _ in if isActive { store?.refreshIfNeeded() } }
+        .onChange(of: isActive) { _, active in if active { store?.refreshIfNeeded() } }
         .sheet(item: Binding(get: { measuring.map(MeasuringItem.init) }, set: { measuring = $0?.kind })) { item in
             MeasurementSheet(kind: item.kind)
         }

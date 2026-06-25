@@ -2,6 +2,9 @@ import SwiftUI
 import SwiftData
 
 struct VitalsView: View {
+    /// Whether the Vitals tab is the one on screen. The `.page` TabView keeps adjacent tabs alive, so
+    /// we gate expensive rebuilds on visibility — an off-screen Vitals must not rebuild on every sync.
+    let isActive: Bool
     @Environment(\.modelContext) private var modelContext
     @Environment(RingSyncCoordinator.self) private var coordinator
     @Query private var profiles: [UserProfile]
@@ -44,7 +47,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.heartRate, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.heartRate) {
                     DetailCard(title: "Heart rate", color: PulseColors.heartRate) {
                         let label = TodayInsights.hrRangeLabel(hrSamples, summary.latestHeartRate?.value)
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -72,7 +75,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.spo2, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.spo2) {
                     DetailCard(title: "Blood oxygen", color: PulseColors.spo2) {
                         let label = TodayInsights.averageLabel(spo2Samples, summary.latestSpO2?.value)
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -95,7 +98,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.stress, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.stress) {
                     DetailCard(title: "Stress", color: PulseColors.stress) {
                         if let latest = stressSamples.last?.value {
                             StressGaugeChart(value: latest).padding(.top, 12)
@@ -105,7 +108,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.hrv, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.hrv) {
                     DetailCard(title: "HRV", color: PulseColors.hrv) {
                         let label = hrvSamples.last.map { "\(Int($0.value))" } ?? "--"
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -123,7 +126,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.temperature, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.temperature) {
                     DetailCard(title: "Skin temperature", color: PulseColors.temperature) {
                         let formatted = tempSamples.last.map { UnitsFormatter.temperature(celsius: $0.value, units: units) }
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -150,8 +153,11 @@ struct VitalsView: View {
             if store == nil { store = VitalsStore(modelContext: modelContext) }
             store?.refreshIfNeeded()
         }
-        // Rebuild once per coalesced persistence flush (cheap signature gate inside).
-        .onChange(of: dataChange.token) { _, _ in store?.refreshIfNeeded() }
+        // Rebuild once per coalesced persistence flush — but only while this tab is on screen, and
+        // the store's signature check still makes it a no-op when nothing changed.
+        .onChange(of: dataChange.token) { _, _ in if isActive { store?.refreshIfNeeded() } }
+        // When returning to this tab, catch up on anything that changed while it was off-screen.
+        .onChange(of: isActive) { _, active in if active { store?.refreshIfNeeded() } }
         .sheet(item: Binding(get: { measuring.map(VitalsMeasuringItem.init) }, set: { measuring = $0?.kind })) { item in
             MeasurementSheet(kind: item.kind)
         }
