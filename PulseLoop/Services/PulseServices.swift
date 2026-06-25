@@ -41,8 +41,10 @@ enum MetricsService {
         // Latest values are the newest reading of each kind regardless of age (the old code took
         // `.last` of the FULL kind history, not the 24h window) — fetch them independently so a
         // last reading older than 24h still surfaces.
-        let latestHR = MetricsRepository.latestMeasurement(kind: .heartRate, context: context)
-        let latestSpO2 = MetricsRepository.latestMeasurement(kind: .spo2, context: context)
+        // Flatten the latest live readings to value snapshots immediately so nothing downstream
+        // (or the cached TodaySummary) holds a live SwiftData object.
+        let latestHR = LatestReading(MetricsRepository.latestMeasurement(kind: .heartRate, context: context))
+        let latestSpO2 = LatestReading(MetricsRepository.latestMeasurement(kind: .spo2, context: context))
         let calibration = calibrationState(device: device, activityRows: activityRows, isDemo: isDemo, context: context)
         let hrFreshness = freshness(lastUpdatedAt: latestHR?.timestamp, isDemo: isDemo)
         let spo2Freshness = freshness(lastUpdatedAt: latestSpO2?.timestamp, isDemo: isDemo)
@@ -353,8 +355,8 @@ enum MetricsService {
     private struct MetricStateInputs {
         let today: ActivityDaily?
         let sleep: SleepSummary?
-        let latestHR: Measurement?
-        let latestSpO2: Measurement?
+        let latestHR: LatestReading?
+        let latestSpO2: LatestReading?
         let hrFreshness: DataFreshness
         let spo2Freshness: DataFreshness
         let activityRows: [ActivityDaily]
@@ -468,7 +470,7 @@ enum MetricsService {
         )
     }
     
-    private static func confidence(from measurement: Measurement?) -> MetricConfidence {
+    private static func confidence(from measurement: LatestReading?) -> MetricConfidence {
         switch measurement?.confidenceRaw {
         case DecodeConfidence.known.rawValue:
             return .high

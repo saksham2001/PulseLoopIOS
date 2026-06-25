@@ -11,6 +11,10 @@ struct TodayView: View {
     @Binding var selectedTab: MainTab
     @State private var measuring: MeasurementSheet.Kind?
     @State private var coachStore = CoachSettingsStore.shared
+    @State private var dataChange = PulseDataChange.shared
+    /// Owns the prepared dashboard state so `body` stays a cheap projection (no per-render DB work).
+    /// Created on first appear from the environment's model context.
+    @State private var store: TodayStore?
 
     private var summaryService: CoachSummaryService { CoachSummaryService(modelContext: modelContext) }
     private var coachEnabled: Bool { coachStore.settings.coachMasterEnabled }
@@ -18,13 +22,14 @@ struct TodayView: View {
 
     var body: some View {
         let _ = PerfTrace.renderTick("TodayView", Self.self)
-        let summary = MetricsService.buildTodaySummary(context: modelContext)
-        let hero = TodayInsights.deriveHero(summary)
-        // On-demand measurement is capability-gated: a ring that can't do an instant reading (e.g.
-        // Colmi has no spot SpO2) makes that tile non-tappable — the tile still shows synced history.
-        let caps = MetricsService.deviceCapabilities(modelContext)
+        // Resolve the store; on the very first frame (before `.task` runs) build one inline so the
+        // dashboard renders immediately. Subsequent renders reuse the cached summary — no rebuild.
+        let activeStore = store ?? TodayStore(modelContext: modelContext)
+        let summary = activeStore.summary
+        let hero = activeStore.hero
+        let caps = activeStore.capabilities
         let coachSummary = todaySummaries.first { $0.scopeKey == CoachDataAccess.localDateString(Date()) }
-        ScrollView {
+        return ScrollView {
             VStack(spacing: 16) {
                 HeroInsightCardView(title: hero.title, summary: hero.summary, chips: hero.chips)
 
@@ -117,8 +122,15 @@ struct TodayView: View {
         .background(PulseColors.background)
         .refreshable { await coordinator.pullToRefresh() }
         .task {
+            // Create the store once from the environment context, then keep it fresh on appear.
+            if store == nil { store = TodayStore(modelContext: modelContext) }
+            store?.refreshIfNeeded()
             if coachEnabled { await summaryService.refreshTodayIfNeeded() }
         }
+        // Keep the dashboard live while on-screen: the persistence layer bumps one coalesced token
+        // per batched save, so we refresh once per sync burst (not per packet). The store's
+        // signature check still makes each refresh cheap — it rebuilds only when data changed.
+        .onChange(of: dataChange.token) { _, _ in store?.refreshIfNeeded() }
         .sheet(item: Binding(get: { measuring.map(MeasuringItem.init) }, set: { measuring = $0?.kind })) { item in
             MeasurementSheet(kind: item.kind)
         }

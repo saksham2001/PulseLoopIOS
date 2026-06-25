@@ -6,19 +6,24 @@ struct VitalsView: View {
     @Environment(RingSyncCoordinator.self) private var coordinator
     @Query private var profiles: [UserProfile]
     @State private var measuring: MeasurementSheet.Kind?
+    @State private var dataChange = PulseDataChange.shared
+    /// Owns the prepared vitals state so `body` does no per-render DB work. Created on first appear.
+    @State private var store: VitalsStore?
 
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
         let _ = PerfTrace.renderTick("VitalsView", Self.self)
-        let summary = MetricsService.buildTodaySummary(context: modelContext)
-        let hrSamples = MetricsService.metricRange(metric: .heartRate, range: .twentyFourHours, context: modelContext)
-        let spo2Samples = MetricsService.metricRange(metric: .spo2, range: .twentyFourHours, context: modelContext)
-        let stressSamples = MetricsService.metricRange(metric: .stress, range: .twentyFourHours, context: modelContext)
-        let hrvSamples = MetricsService.metricRange(metric: .hrv, range: .twentyFourHours, context: modelContext)
-        let tempSamples = MetricsService.metricRange(metric: .temperature, range: .twentyFourHours, context: modelContext)
+        // First frame builds inline; subsequent frames reuse the cached store.
+        let activeStore = store ?? VitalsStore(modelContext: modelContext)
+        let summary = activeStore.summary
+        let hrSamples = activeStore.hrSamples
+        let spo2Samples = activeStore.spo2Samples
+        let stressSamples = activeStore.stressSamples
+        let hrvSamples = activeStore.hrvSamples
+        let tempSamples = activeStore.tempSamples
 
-        ScrollView {
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Vitals").font(.system(size: 26, weight: .semibold)).foregroundStyle(PulseColors.textPrimary)
@@ -27,7 +32,7 @@ struct VitalsView: View {
 
                 // On-demand measurement buttons are capability-gated: a ring that can't do an instant
                 // reading (e.g. Colmi has no spot SpO2) simply doesn't show that button.
-                let caps = MetricsService.deviceCapabilities(modelContext)
+                let caps = activeStore.capabilities
                 if caps.contains(.manualHeartRate) || caps.contains(.manualSpo2) {
                     HStack(spacing: 8) {
                         if caps.contains(.manualHeartRate) {
@@ -141,6 +146,12 @@ struct VitalsView: View {
         }
         .background(PulseColors.background)
         .refreshable { await coordinator.pullToRefresh() }
+        .task {
+            if store == nil { store = VitalsStore(modelContext: modelContext) }
+            store?.refreshIfNeeded()
+        }
+        // Rebuild once per coalesced persistence flush (cheap signature gate inside).
+        .onChange(of: dataChange.token) { _, _ in store?.refreshIfNeeded() }
         .sheet(item: Binding(get: { measuring.map(VitalsMeasuringItem.init) }, set: { measuring = $0?.kind })) { item in
             MeasurementSheet(kind: item.kind)
         }
