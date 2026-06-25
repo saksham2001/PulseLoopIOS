@@ -16,8 +16,7 @@ struct ProfileSettingsView: View {
     /// Canonical metric, updated from the text fields on save.
     @State private var heightCm: Double = 175
     @State private var weightKg: Double = 70
-    /// What the user types, in the displayed units.
-    @State private var heightText: String = ""
+    /// What the user types for weight, in the displayed units.
     @State private var weightText: String = ""
     @State private var units: UnitsPreference = .metric
     @State private var loaded = false
@@ -53,7 +52,13 @@ struct ProfileSettingsView: View {
                 }
 
                 SectionHeader(title: "Body metrics", action: nil)
-                numberCard(units == .metric ? "Height (cm)" : "Height (in)", text: $heightText)
+                labeledCard(units == .metric ? "Height (cm)" : "Height (in)") {
+                    Picker("Height", selection: heightSelection) {
+                        ForEach(heightRange, id: \.self) { Text(heightLabel($0)).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(PulseColors.accent)
+                }
                 numberCard(units == .metric ? "Weight (kg)" : "Weight (lb)", text: $weightText)
 
                 SectionHeader(title: "Units", action: nil)
@@ -72,10 +77,11 @@ struct ProfileSettingsView: View {
         .background(PulseColors.background)
         .navigationTitle("Profile")
         .onAppear(perform: loadIfNeeded)
-        // Reformat the entry fields when the units toggle flips, so the numbers stay consistent.
+        // Reformat the weight field when the units toggle flips, so the number stays consistent.
+        // (Height is a dropdown bound to canonical cm, so it converts automatically.)
         .onChange(of: units) { _, newUnits in
-            commitHeightWeightFromText(using: oldUnitsBeforeChange ?? newUnits)
-            seedHeightWeightText(for: newUnits)
+            commitWeightFromText(using: oldUnitsBeforeChange ?? newUnits)
+            seedWeightText(for: newUnits)
         }
     }
 
@@ -101,19 +107,34 @@ struct ProfileSettingsView: View {
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
     }
 
-    // MARK: - Height/weight text ↔ canonical metric
+    // MARK: - Height picker (dropdown), Weight text entry
 
-    private func seedHeightWeightText(for units: UnitsPreference) {
+    /// Height is picked from a dropdown in whole cm (metric) or whole inches (imperial), stored as cm.
+    private var heightRange: [Int] {
+        units == .metric ? Array(120...220) : Array(48...87)   // 48–87 in ≈ 4'0"–7'3"
+    }
+    private var heightSelection: Binding<Int> {
+        Binding(
+            get: { units == .metric ? Int(heightCm.rounded()) : Int((heightCm / 2.54).rounded()) },
+            set: { heightCm = units == .metric ? Double($0) : Double($0) * 2.54 }
+        )
+    }
+    private func heightLabel(_ value: Int) -> String {
+        guard units == .imperial else { return "\(value)" }
+        let feet = value / 12
+        let inches = value % 12
+        return "\(value) (\(feet)'\(inches)\")"
+    }
+
+    // MARK: - Weight text ↔ canonical kg
+
+    private func seedWeightText(for units: UnitsPreference) {
         oldUnitsBeforeChange = units
-        heightText = UnitsFormatter.height(cm: heightCm, units: units).value
         weightText = UnitsFormatter.weight(kg: weightKg, units: units).value
     }
 
-    /// Parse the text fields (interpreted in `units`) back into canonical cm/kg.
-    private func commitHeightWeightFromText(using units: UnitsPreference) {
-        if let h = Double(heightText) {
-            heightCm = units == .metric ? h : h * 2.54
-        }
+    /// Parse the weight text field (interpreted in `units`) back into canonical kg.
+    private func commitWeightFromText(using units: UnitsPreference) {
         if let w = Double(weightText) {
             weightKg = units == .metric ? w : w / 2.2046226
         }
@@ -132,11 +153,11 @@ struct ProfileSettingsView: View {
             weightKg = profile.weightKg ?? 70
             units = profile.units
         }
-        seedHeightWeightText(for: units)
+        seedWeightText(for: units)
     }
 
     private func save() {
-        commitHeightWeightFromText(using: units)
+        commitWeightFromText(using: units)
         let profile = profiles.first ?? {
             let fresh = UserProfile()
             modelContext.insert(fresh)

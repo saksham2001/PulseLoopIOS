@@ -74,6 +74,8 @@ struct RootAppView: View {
                     MeasurementSettingsView()
                 case .settingsActivityTracking:
                     WorkoutSettingsView()
+                case .settingsGoals:
+                    GoalsSettingsView()
                 case .settingsVitals:
                     VitalsSettingsView()
                 case .settingsPrivacyData:

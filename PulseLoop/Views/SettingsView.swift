@@ -70,6 +70,13 @@ struct SettingsView: View {
                     subtitle: "Workout sensors, cadence, and GPS"
                 ) { path.append(AppRoute.settingsActivityTracking) }
 
+                SettingsCategoryRow(
+                    icon: "target",
+                    tint: PulseColors.readiness,
+                    title: "Goals",
+                    subtitle: "Daily steps, sleep, activity, and weekly workouts"
+                ) { path.append(AppRoute.settingsGoals) }
+
                 // Device-specific: only rings that expose a configurable measurement interval (Colmi)
                 // declare `.measurementInterval`, so the generic 56ff jring never shows this row.
                 if capabilities.contains(.measurementInterval) {
