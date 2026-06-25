@@ -10,6 +10,7 @@ struct VitalsView: View {
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
+        let _ = PerfTrace.renderTick("VitalsView", Self.self)
         let summary = MetricsService.buildTodaySummary(context: modelContext)
         let hrSamples = MetricsService.metricRange(metric: .heartRate, range: .twentyFourHours, context: modelContext)
         let spo2Samples = MetricsService.metricRange(metric: .spo2, range: .twentyFourHours, context: modelContext)

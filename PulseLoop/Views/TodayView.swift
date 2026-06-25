@@ -17,6 +17,7 @@ struct TodayView: View {
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
+        let _ = PerfTrace.renderTick("TodayView", Self.self)
         let summary = MetricsService.buildTodaySummary(context: modelContext)
         let hero = TodayInsights.deriveHero(summary)
         // On-demand measurement is capability-gated: a ring that can't do an instant reading (e.g.

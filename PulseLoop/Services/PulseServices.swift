@@ -7,6 +7,12 @@ enum MetricsService {
     private static let minimumTrendDays = 3
     
     static func buildTodaySummary(context: ModelContext) -> TodaySummary {
+        PerfTrace.measure("MetricsService.buildTodaySummary", .summary) {
+            _buildTodaySummary(context: context)
+        }
+    }
+
+    private static func _buildTodaySummary(context: ModelContext) -> TodaySummary {
         let calendar = Calendar.current
         let activityRows = MetricsRepository.activityRows(context: context)
         let measurements = MetricsRepository.measurements(context: context)
@@ -84,6 +90,13 @@ enum MetricsService {
     }
     
     static func metricRange(metric: MetricKey, range: MetricRange, context: ModelContext) -> [MetricSample] {
+        PerfTrace.note(.summary, "metricRange metric=\(metric) range=\(range)")
+        return PerfTrace.measure("MetricsService.metricRange", .summary) {
+            _metricRange(metric: metric, range: range, context: context)
+        }
+    }
+
+    private static func _metricRange(metric: MetricKey, range: MetricRange, context: ModelContext) -> [MetricSample] {
         let raw: [MetricSample]
         switch metric {
         case .heartRate:

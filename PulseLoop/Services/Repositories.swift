@@ -16,8 +16,10 @@ enum DeviceRepository {
 enum MetricsRepository {
     @MainActor
     static func activityRows(context: ModelContext) -> [ActivityDaily] {
-        let descriptor = FetchDescriptor<ActivityDaily>(sortBy: [SortDescriptor(\.date)])
-        return (try? context.fetch(descriptor)) ?? []
+        PerfTrace.measureRows("MetricsRepository.activityRows", .repo) {
+            let descriptor = FetchDescriptor<ActivityDaily>(sortBy: [SortDescriptor(\.date)])
+            return (try? context.fetch(descriptor)) ?? []
+        }
     }
     
     @MainActor
@@ -39,10 +41,14 @@ enum MetricsRepository {
     
     @MainActor
     static func measurements(kind: MeasurementKind? = nil, context: ModelContext) -> [Measurement] {
-        let descriptor = FetchDescriptor<Measurement>(sortBy: [SortDescriptor(\.timestamp)])
-        let rows = (try? context.fetch(descriptor)) ?? []
+        let rows = PerfTrace.measureRows("MetricsRepository.measurements.fetchAll", .repo) {
+            let descriptor = FetchDescriptor<Measurement>(sortBy: [SortDescriptor(\.timestamp)])
+            return (try? context.fetch(descriptor)) ?? []
+        }
         guard let kind else { return rows }
-        return rows.filter { $0.kind == kind }
+        let filtered = rows.filter { $0.kind == kind }
+        PerfTrace.note(.repo, "measurements kind=\(kind.rawValue) fetched=\(rows.count) afterFilter=\(filtered.count)")
+        return filtered
     }
     
     @MainActor
@@ -216,8 +222,10 @@ enum DebugRepository {
     
     @MainActor
     static func queryPackets(filter: DebugPacketFilter, context: ModelContext) -> [RawPacketRow] {
-        let descriptor = FetchDescriptor<RawPacketRow>(sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
-        let rows = (try? context.fetch(descriptor)) ?? []
+        let rows = PerfTrace.measureRows("DebugRepository.queryPackets.fetchAll", .repo) {
+            let descriptor = FetchDescriptor<RawPacketRow>(sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
+            return (try? context.fetch(descriptor)) ?? []
+        }
         return rows.filter { row in
             if let direction = filter.direction, row.direction != direction { return false }
             if let commandId = filter.commandId, row.commandId != commandId { return false }
