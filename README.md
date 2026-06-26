@@ -5,12 +5,12 @@
   <a href="https://github.com/saksham2001/PulseLoopiOS/stargazers"><img src="https://img.shields.io/github/stars/saksham2001/PulseLoopiOS?style=flat&logo=github" alt="Stars"></a>
   <a href="https://github.com/saksham2001/PulseLoopiOS/network/members"><img src="https://img.shields.io/github/forks/saksham2001/PulseLoopiOS?style=flat&logo=github" alt="Forks"></a>
   <a href="https://github.com/saksham2001/PulseLoopiOS/issues"><img src="https://img.shields.io/github/issues/saksham2001/PulseLoopiOS" alt="Issues"></a>
+  <a href="https://github.com/saksham2001/PulseLoopiOS/pulls"><img src="https://img.shields.io/github/issues-pr/saksham2001/PulseLoopiOS?label=open%20PRs&logo=github" alt="PRs"></a>
   <!-- TODO: replace ci.yml with your actual workflow filename in .github/workflows/ -->
   <a href="https://github.com/saksham2001/PulseLoopiOS/actions"><img src="https://img.shields.io/github/actions/workflow/status/saksham2001/PulseLoopiOS/ci.yml?label=CI&logo=githubactions&logoColor=white" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-iOS%2018%2B-lightgrey?logo=apple" alt="Platform">
   <img src="https://img.shields.io/badge/Swift-orange?logo=swift&logoColor=white" alt="Swift">
   <a href="https://github.com/saksham2001/PulseLoopiOS/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-CC--BY--4.0-blue" alt="License"></a>
-  <a href="https://github.com/saksham2001/PulseLoopiOS/pulls"><img src="https://img.shields.io/github/issues-pr/saksham2001/PulseLoopiOS?label=open%20PRs&logo=github" alt="Open PRs"></a>
   <a href="https://discord.gg/t9y85ebaKD"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
@@ -34,7 +34,7 @@
   <a href="https://www.reddit.com/r/hardwarehacking/comments/1u3wdeb/reverse_engineered_s_7_chinese_smart_ring_from/"><img src="https://img.shields.io/badge/Reddit-r%2Fhardwarehacking-FF4500?logo=reddit&logoColor=white" alt="r/hardwarehacking"></a>
   <a href="https://www.reddit.com/r/selfhosted/comments/1u3wg8z/reverse_engineered_ble_protocol_of_a_7_generic/"><img src="https://img.shields.io/badge/Reddit-r%2Fselfhosted-FF4500?logo=reddit&logoColor=white" alt="r/selfhosted"></a>
   <a href="https://www.reddit.com/r/degoogle/comments/1u43mxe/you_dont_need_fitbit_now_i_reverse_engineering_a/"><img src="https://img.shields.io/badge/Reddit-r%2Fdegoogle-FF4500?logo=reddit&logoColor=white" alt="r/degoogle"></a>
-  <a href="https://x.com/vu3dtu/status/2064797099385061792"><img src="https://img.shields.io/badge/X-000000?logo=x&logoColor=white" alt="X"></a>
+  <a href="https://x.com/vu3dtu/status/2064797099385061792"><img src="https://img.shields.io/badge/-000000?logo=x&logoColor=white" alt="X post"></a>
 </p>
 
 ---
