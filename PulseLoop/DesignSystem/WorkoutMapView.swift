@@ -1,7 +1,7 @@
 import SwiftUI
 import MapKit
 
-/// Route map for a workout — a real MapKit basemap with the recorded GPS polyline and start/current
+/// Route map for a workout  -  a real MapKit basemap with the recorded GPS polyline and start/current
 /// markers. During a live workout (`follow: true`) the camera reframes the full route as it grows and
 /// offers a Recenter control; the pill shows whether auto-follow is engaged. Falls back to a
 /// placeholder card when there's no usable route (non-GPS workout, denied permission, or fewer than

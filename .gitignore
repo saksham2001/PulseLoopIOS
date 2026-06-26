@@ -41,3 +41,22 @@ fastlane/test_output
 # Misc
 *.log
 *~
+
+# Secrets / local env
+.env
+.env.local
+*.env.local
+web/.env.local
+
+# Large binary model + framework assets (managed out-of-band, not in git)
+Models/
+Frameworks/
+
+# Web app build artifacts & dependencies
+web/node_modules/
+web/.next/
+web/.vercel/
+web/tsconfig.tsbuildinfo
+
+# Vendored design references
+claude design/

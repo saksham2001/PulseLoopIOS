@@ -2,7 +2,7 @@ import Foundation
 
 /// Chart spec with data embedded directly (no refetch on render). Built by the
 /// `prepare_chart` tool in Swift and copied verbatim into `CoachResponse.chart`
-/// by the model — ports `CoachChartSpec` from the web app.
+/// by the model  -  ports `CoachChartSpec` from the web app.
 struct CoachChart: Codable, Equatable {
     var chartType: CoachChartType
     var title: String

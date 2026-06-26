@@ -20,7 +20,7 @@ enum CoachNotificationSlot: String, Codable, CaseIterable {
         return nil
     }
 
-    /// Next time a slot window opens at or after `date` — used to schedule the
+    /// Next time a slot window opens at or after `date`  -  used to schedule the
     /// next background wake.
     static func nextWindowStart(
         after date: Date, morningHour: Int, eveningHour: Int, calendar: Calendar = .current
@@ -37,7 +37,7 @@ enum CoachNotificationSlot: String, Codable, CaseIterable {
     }
 }
 
-/// Persisted record of a delivered check-in — enforces the twice-a-day cap
+/// Persisted record of a delivered check-in  -  enforces the twice-a-day cap
 /// (one per slot per day) and feeds the "don't repeat" uniqueness history.
 @Model
 final class CoachNotificationRecord {

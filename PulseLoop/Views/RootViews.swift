@@ -8,6 +8,12 @@ struct RootAppView: View {
     @Environment(LiveWorkoutManager.self) private var liveWorkout
     @Query private var profiles: [UserProfile]
     @State private var path = NavigationPath()
+    @State private var showModuleOnboarding = false
+    @AppStorage("appAppearance") private var appearance: String = AppAppearance.system.rawValue
+
+    private var colorScheme: ColorScheme? {
+        AppAppearance(rawValue: appearance)?.colorScheme
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -18,15 +24,24 @@ struct RootAppView: View {
                     OnboardingFlowView()
                 }
             }
-            .background(PulseColors.background.ignoresSafeArea())
-            // Demo data is opt-in: load it from Settings → "Reseed demo data", or via the
-            // `-seedDemo YES` launch arg (test tooling only). Normal launches start empty.
+            .background(PulseColors.canvas.ignoresSafeArea())
             .task {
-                if UserDefaults.standard.bool(forKey: "seedDemo") {
+                ModuleManager.shared.runMigrations()
+                SubAppRegistry.shared.runInstallMigration()
+                SubAppRegistry.shared.runVersionBackfill()
+                SubAppRegistry.shared.registerAllRoutes()
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-seedDemo") || UserDefaults.standard.bool(forKey: "seedDemo") {
                     SeedData.clearAll(modelContext)
                     SeedData.seedDemo(modelContext, completeOnboarding: true)
                 }
-                // Test tooling: deep-link straight to a seeded workout's detail (route map).
+                #endif
+                // A truly empty install now shows the onboarding flow instead of
+                // silently seeding demo data + completing onboarding. The demo-seed
+                // path above is DEBUG-only and never ships in a release build.
+                // The exercise library is content, not demo data, so seed it on
+                // any install where it's still empty.
+                SeedData.seedExerciseCatalogIfNeeded(modelContext)
                 if UserDefaults.standard.bool(forKey: "openWorkout"),
                    let session = ActivityRepository.sessions(context: modelContext).first(where: { $0.status == .finished && $0.useGps }) {
                     path.append(AppRoute.activityDetail(session.id))
@@ -34,9 +49,13 @@ struct RootAppView: View {
                 if UserDefaults.standard.bool(forKey: "openRecord") {
                     path.append(AppRoute.recordSelect)
                 }
-                // Re-attach to an in-progress workout left running across launches.
                 liveWorkout.recover()
                 routeDeepLinkIfNeeded()
+                // Once-per-day AI knowledge-base pass. Self-gating + silent when
+                // the coach is off or no API key is set, so it's safe to fire on
+                // every app open. Detached so it never blocks first paint.
+                let learningContext = modelContext
+                Task { await DailyLearningService(modelContext: learningContext).runIfNeeded() }
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
@@ -51,29 +70,24 @@ struct RootAppView: View {
                 routeDeepLinkIfNeeded()
             }
             .navigationDestination(for: AppRoute.self) { route in
-                switch route {
-                case let .activityDetail(id):
-                    ActivityDetailView(sessionId: id)
-                case .recordSelect:
-                    RecordSelectView(path: $path)
-                case let .recordLive(id):
-                    RecordLiveView(sessionId: id, path: $path)
-                case let .recordSummary(id):
-                    RecordSummaryView(sessionId: id, path: $path)
-                case .settings:
-                    SettingsView(path: $path)
-                case .debug:
-                    DebugView()
-                case .componentGallery:
-                    ComponentGalleryView()
-                }
+                destinationView(for: route)
             }
+            .subAppNavigationDestinations(path: $path)
         }
         .tint(PulseColors.accent)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(colorScheme)
+        .fullScreenCover(isPresented: $showModuleOnboarding) {
+            ModulePickerView(isOnboarding: true) {
+                showModuleOnboarding = false
+            }
+        }
+        .onAppear {
+            if profiles.first?.onboardingCompleted == true && !ModuleManager.shared.hasOnboarded {
+                showModuleOnboarding = true
+            }
+        }
     }
 
-    /// Navigate to a workout requested by a Live Activity tap / Lock Screen control.
     private func routeDeepLinkIfNeeded() {
         guard let id = liveWorkout.pendingDeepLinkSession else { return }
         liveWorkout.clearDeepLink()
@@ -81,260 +95,352 @@ struct RootAppView: View {
         let route: AppRoute = session.status == .finished ? .recordSummary(id) : .recordLive(id)
         path.append(route)
     }
+
+    @ViewBuilder
+    private func destinationView(for route: AppRoute) -> some View {
+        switch route {
+        case let .activityDetail(id):
+            ActivityDetailView(sessionId: id)
+        case .recordSelect:
+            RecordSelectView(path: $path)
+        case let .recordLive(id):
+            RecordLiveView(sessionId: id, path: $path)
+        case let .recordSummary(id):
+            RecordSummaryView(sessionId: id, path: $path)
+        case .settings:
+            SettingsView(path: $path)
+        case .debug:
+            DebugView()
+        case .componentGallery:
+            ComponentGalleryView()
+        case .subAppBuilder:
+            SubAppBuilderView()
+        case let .subAppEditor(specID):
+            subAppEditorDestination(specID: specID)
+        case .credits:
+            CreditsView()
+        case .mySubApps:
+            MySubAppsView(path: $path)
+        case let .subApp(specID):
+            SpecSubAppHost(specID: specID)
+        case .subAppRegistry:
+            SubAppRegistryView()
+        case .moduleUpdates:
+            ModuleUpdatesView()
+        case .coachQuality:
+            CoachQualityView()
+        case .inbox:
+            InboxView(path: $path)
+        case .dayPlan:
+            DayPlanView()
+        case .notesList:
+            NotesListView(path: $path)
+        case let .noteEditor(id):
+            NoteEditorView(noteId: id)
+        case let .mailReply(id):
+            MailReplyView(itemId: id)
+        case .connectAccounts:
+            ConnectAccountsView()
+        case .privacyPermissions:
+            PrivacyPermissionsView()
+        case .sidebar:
+            SidebarView(path: $path)
+        case .health:
+            HealthView(path: $path)
+        case .vitals:
+            VitalsView()
+        case .sleep:
+            SleepView()
+        case .activity:
+            ActivityView(path: $path)
+        case .tasksList:
+            TasksView()
+        case .friends:
+            FriendsView(path: $path)
+        case .profile:
+            ProfileView()
+        case .insights:
+            InsightsChartsView()
+        case .modulePicker:
+            ModulePickerView()
+        case .fitness:
+            FitnessDashboardView()
+        case .workoutBuilder:
+            WorkoutBuilderView()
+        case .exerciseLibrary:
+            ExerciseLibraryView { _ in }
+        case .foodDiary:
+            FoodDiaryView(path: $path)
+        case let .foodSearch(mealTypeRaw):
+            FoodSearchView(mealType: MealType(rawValue: mealTypeRaw) ?? .snack, path: $path)
+        case let .workoutSession(id):
+            WorkoutSessionRoute(templateId: id)
+        case .bodyProgress:
+            BodyProgressView()
+        case .journal:
+            JournalView()
+        case .knowledgeBase:
+            KnowledgeBaseView()
+        case .travel:
+            TravelView(path: $path)
+        case let .tripDetail(id):
+            TripDetailView(tripId: id)
+        }
+    }
+
+    /// Resolves the editor for an existing user spec (by id), or a fresh blank spec
+    /// when `specID` is nil. Falls back to an empty-state if the id can't be found.
+    @ViewBuilder
+    private func subAppEditorDestination(specID: String?) -> some View {
+        if let specID, let spec = UserSubAppStore.shared.specs.first(where: { $0.id == specID }) {
+            SubAppEditorView(spec: spec, isNew: false)
+        } else if specID == nil {
+            SubAppEditorView(spec: SubAppEditorView.blankSpec(), isNew: true)
+        } else {
+            InlineEmptyState(title: "Unavailable", message: "This sub-app could not be loaded for editing.")
+        }
+    }
 }
+
+// MARK: - Main Tab View
 
 struct MainTabView: View {
     @Binding var path: NavigationPath
-    @State private var selected: MainTab
-    @State private var nav = CoachNavigation.shared
-    @State private var coachStore = CoachSettingsStore.shared
+    @State private var selected: MainTab = .home
+    @State private var showCommandPalette = false
+    @State private var showVoiceCapture = false
+    @State private var pendingRoute: AppRoute?
+    @State private var pendingTab: MainTab?
 
     init(path: Binding<NavigationPath>) {
         self._path = path
-        // Optional `-startTab vitals` launch arg (parsed into UserDefaults) for screenshot tooling.
         let raw = UserDefaults.standard.string(forKey: "startTab")
-        let requested = MainTab.allCases.first { $0.rawValue.lowercased() == raw } ?? .today
-        // If the coach is off, the coach tab doesn't exist — fall back to Today
-        // so a `-startTab coach` arg doesn't strand us on an empty selection.
-        let masterOn = CoachSettingsStore.shared.settings.coachMasterEnabled
-        _selected = State(initialValue: (requested == .coach && !masterOn) ? .today : requested)
-    }
-
-    private var coachEnabled: Bool { coachStore.settings.coachMasterEnabled }
-    private var visibleTabs: [MainTab] {
-        coachEnabled ? MainTab.allCases : MainTab.allCases.filter { $0 != .coach }
+        let requested = MainTab.allCases.first { $0.rawValue.lowercased() == raw } ?? .home
+        _selected = State(initialValue: requested == .askAI ? .home : requested)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            AppHeader(path: $path)
             ZStack(alignment: .bottom) {
                 TabView(selection: $selected) {
-                    TodayView(path: $path, selectedTab: $selected).tag(MainTab.today)
-                    VitalsView().tag(MainTab.vitals)
-                    ActivityView(path: $path).tag(MainTab.activity)
-                    SleepView().tag(MainTab.sleep)
-                    if coachEnabled {
-                        CoachView().tag(MainTab.coach)
-                    }
+                    HomeView(path: $path, onSwitchTab: { tab in selected = tab }).tag(MainTab.home)
+                    TrackerView(path: $path).tag(MainTab.tracker)
+                    Color.clear.tag(MainTab.askAI)
+                    InboxView(path: $path).tag(MainTab.inbox)
+                    FriendsView(path: $path).tag(MainTab.friends)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
-                BottomNavBar(selected: $selected, tabs: visibleTabs)
+                BottomNavBar(selected: $selected, onCenterTap: { showCommandPalette = true })
             }
-            // Pin the whole tab layout so the keyboard never shifts the nav bar or
-            // tab content. CoachView lifts its own composer via a keyboard observer.
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            .onChange(of: selected) { _, _ in UIApplication.shared.endEditing() }
+            .onChange(of: selected) { _, newTab in
+                if newTab == .askAI {
+                    selected = .home
+                    showCommandPalette = true
+                }
+                UIApplication.shared.endEditing()
+            }
         }
-        .onChange(of: nav.requestedConversationId) { _, id in
-            if id != nil && coachEnabled { selected = .coach }  // CoachView opens the thread + resets the flag
+        .fullScreenCover(isPresented: $showCommandPalette, onDismiss: applyPendingNavigation) {
+            CoachView(onDismiss: { showCommandPalette = false })
         }
-        .onChange(of: coachEnabled) { _, enabled in
-            // Coach was turned off while on the coach tab — bounce home.
-            if !enabled && selected == .coach { selected = .today }
-            if !enabled { nav.requestedConversationId = nil }
+        .fullScreenCover(isPresented: $showVoiceCapture) {
+            VoiceCaptureView(path: $path)
         }
         .background(PulseColors.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-    }
-}
-
-/// Fixed top header mirroring the web app's `TopStatusBar`: small uppercase brand over a
-/// time-based greeting on the left; a connection-status pill plus quick nav icons on the right.
-struct AppHeader: View {
-    @Binding var path: NavigationPath
-    @Environment(RingBLEClient.self) private var ble
-    @Query private var devices: [Device]
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("PulseLoop")
-                    .font(.system(size: 12, weight: .medium))
-                    .textCase(.uppercase)
-                    .tracking(1.2)
-                    .foregroundStyle(PulseColors.textMuted)
-                Text(greetingForHour())
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(PulseColors.textPrimary)
-                    .lineLimit(1)
+        .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { notification in
+            if let tab = notification.object as? MainTab {
+                selected = tab
             }
-            Spacer(minLength: 8)
-            HStack(spacing: 10) {
-                ConnectionStatusPill(state: effectiveState, batteryPercent: effectiveBattery)
-                    .onTapGesture { path.append(AppRoute.settings) }
-                Button {
-                    path.append(AppRoute.debug)
-                } label: {
-                    Image(systemName: "waveform.path")
-                }
-                Button {
-                    path.append(AppRoute.settings)
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-            }
-            .font(.system(size: 17))
-            .foregroundStyle(PulseColors.textSecondary)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
-        .background(PulseColors.background)
-    }
-
-    /// Prefer live BLE state; otherwise fall back to the stored device so demo
-    /// data shows "Connected · 82%" instead of a permanently disconnected ring.
-    private var liveActive: Bool {
-        [.connected, .connecting, .reconnecting, .scanning].contains(ble.state)
-    }
-    private var effectiveState: RingConnectionState {
-        liveActive ? ble.state : (devices.first?.state ?? ble.state)
-    }
-    private var effectiveBattery: Int? {
-        ble.batteryPercent ?? devices.first?.batteryPercent
-    }
-}
-
-/// Colored-dot + label pill describing the BLE connection state, matching the web app.
-struct ConnectionStatusPill: View {
-    let state: RingConnectionState
-    let batteryPercent: Int?
-    @State private var pulse = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 8, height: 8)
-                .opacity(isPulsing && pulse ? 0.35 : 1)
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(PulseColors.textSecondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(PulseColors.card, in: Capsule())
-        .overlay(Capsule().stroke(PulseColors.borderSubtle, lineWidth: 1))
-        .fixedSize(horizontal: true, vertical: false)
-        .onAppear {
-            guard isPulsing else { return }
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { pulse = true }
+        .onReceive(NotificationCenter.default.publisher(for: .openCoach)) { _ in
+            showCommandPalette = true
         }
     }
 
-    private var isPulsing: Bool {
-        state == .connecting || state == .reconnecting || state == .scanning
-    }
-
-    private var dotColor: Color {
-        switch state {
-        case .connected: return PulseColors.success
-        case .connecting, .reconnecting: return PulseColors.accent
-        case .scanning: return PulseColors.textMuted
-        case .failed: return PulseColors.danger
-        case .idle, .disconnected: return PulseColors.textMuted
+    /// Run queued navigation once the command palette has fully dismissed, avoiding
+    /// the previous fixed-delay timing hack that could miss transitions on slow devices.
+    private func applyPendingNavigation() {
+        // Local quick-add navigation (existing behavior).
+        if let route = pendingRoute {
+            pendingRoute = nil
+            path.append(route)
         }
-    }
-
-    private var label: String {
-        switch state {
-        case .connected:
-            if let battery = batteryPercent, battery > 0 { return "Connected · \(battery)%" }
-            return "Connected"
-        case .connecting, .reconnecting: return "Connecting…"
-        case .scanning: return "Searching…"
-        case .failed: return "Sync failed"
-        case .idle, .disconnected: return "Disconnected"
+        if let tab = pendingTab {
+            pendingTab = nil
+            selected = tab
+        }
+        // Navigation requested by the Coach `navigate_to` tool.
+        let coachNav = CoachNavigation.shared
+        if let tab = coachNav.requestedTab {
+            coachNav.requestedTab = nil
+            selected = tab
+        }
+        if let route = coachNav.requestedRoute {
+            coachNav.requestedRoute = nil
+            path.append(route)
         }
     }
 }
 
-/// Time-of-day greeting, mirroring the web app's `greetingForHour()`.
-func greetingForHour(_ date: Date = Date()) -> String {
-    switch Calendar.current.component(.hour, from: date) {
-    case 5..<12: return "Good morning"
-    case 12..<17: return "Good afternoon"
-    case 17..<22: return "Good evening"
-    default: return "Good night"
-    }
-}
+// MARK: - Bottom Nav Bar
 
 struct BottomNavBar: View {
     @Binding var selected: MainTab
-    var tabs: [MainTab] = MainTab.allCases
+    var onCenterTap: () -> Void
+    @AppStorage("tabOrder") private var tabOrderData: Data = Data()
+    /// Bumped on `.installedModulesChanged` so tab visibility recomputes when the
+    /// user installs/uninstalls a module-backed tab.
+    @State private var installVersion = 0
+
+    /// Module that a tab represents, if any. Home/Tracker/Ask AI are fixed anchors
+    /// (always present); Inbox and Friends map to installable modules and hide when
+    /// their module isn't installed.
+    private func backingModule(_ tab: MainTab) -> AppModule? {
+        switch tab {
+        case .inbox: return .aiCapture
+        case .friends: return .accountability
+        default: return nil
+        }
+    }
+
+    private func isVisible(_ tab: MainTab) -> Bool {
+        guard let module = backingModule(tab) else { return true }
+        return ModuleManager.shared.isEnabled(module)
+    }
+
+    private var outerTabs: [MainTab] {
+        let saved = (try? JSONDecoder().decode([String].self, from: tabOrderData)) ?? []
+        let defaultOrder: [MainTab] = [.home, .tracker, .inbox, .friends]
+        let base: [MainTab]
+        if saved.isEmpty {
+            base = defaultOrder
+        } else {
+            let mapped = saved.compactMap { raw in MainTab.allCases.first { $0.rawValue == raw } }
+            base = mapped.isEmpty ? defaultOrder : mapped
+        }
+        return base.filter(isVisible)
+    }
+
+    private var tabs: [MainTab] {
+        // Always-present anchors flank the center Ask AI button. Module-backed tabs
+        // (Inbox/Friends) drop out when uninstalled; the row stays balanced.
+        let outer = outerTabs
+        let leading = Array(outer.prefix(2))
+        let trailing = Array(outer.dropFirst(2))
+        return leading + [.askAI] + trailing
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(tabs) { tab in
-                Button {
-                    selected = tab
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.symbol)
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(width: 38, height: 28)
-                            .background(selected == tab ? PulseColors.accentSoft : Color.clear)
-                            .clipShape(Capsule())
-                        Text(tab.rawValue)
-                            .font(.system(size: 10, weight: .medium))
+                if tab == .askAI {
+                    Button {
+                        HapticService.impact(.light)
+                        onCenterTap()
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous)
+                                .fill(PulseColors.accent)
+                                .frame(width: 52, height: 52)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                        .offset(y: -4)
                     }
-                    .foregroundStyle(selected == tab ? PulseColors.textPrimary : PulseColors.textMuted)
                     .frame(maxWidth: .infinity)
+                    .accessibilityLabel("Ask AI")
+                    .accessibilityHint("Opens the command palette to capture or ask")
+                } else {
+                    Button {
+                        if selected != tab { HapticService.selection() }
+                        selected = tab
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: tab.symbol)
+                                .font(.system(size: 20, weight: selected == tab ? .medium : .light))
+                                .frame(width: 38, height: 28)
+                            Text(tab.rawValue)
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(selected == tab ? PulseColors.textPrimary : PulseColors.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: PulseLayout.minTapTarget)
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel(tab.rawValue)
+                    .accessibilityAddTraits(selected == tab ? [.isButton, .isSelected] : .isButton)
                 }
             }
         }
         .padding(.horizontal, 8)
-        .padding(.top, 8)
+        .padding(.top, 10)
         .padding(.bottom, 8)
-        .background(.ultraThinMaterial)
+        .background(PulseColors.background)
         .overlay(alignment: .top) {
-            Rectangle().fill(PulseColors.borderSubtle).frame(height: 1)
+            Rectangle().fill(PulseColors.borderHairline).frame(height: 0.5)
+        }
+        .id(installVersion)
+        .onReceive(NotificationCenter.default.publisher(for: .installedModulesChanged)) { _ in
+            installVersion &+= 1
+            // If the currently selected tab was just uninstalled, fall back to Home.
+            if !isVisible(selected) { selected = .home }
         }
     }
 }
+
+// MARK: - Onboarding
 
 struct OnboardingFlowView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
     @State private var step = 0
-    private let titles = ["Welcome", "Profile", "Baseline", "Goals", "Pair"]
+    @State private var name = ""
+    private let steps = ["Welcome", "Name", "Health", "Privacy", "Comfort"]
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                ForEach(titles.indices, id: \.self) { index in
+                ForEach(steps.indices, id: \.self) { index in
                     Capsule()
-                        .fill(index <= step ? PulseColors.accent : PulseColors.cardSoft)
+                        .fill(index <= step ? PulseColors.accent : PulseColors.fillSubtle)
                         .frame(height: 4)
                 }
             }
             .padding()
+            .accessibilityElement()
+            .accessibilityLabel("Step \(step + 1) of \(steps.count): \(steps[step])")
 
             TabView(selection: $step) {
                 OnboardingWelcomeView(next: next).tag(0)
-                OnboardingProfileView(next: next).tag(1)
-                OnboardingBaselineView(next: next).tag(2)
-                OnboardingGoalsView(next: next).tag(3)
-                OnboardingPairView(finish: finish).tag(4)
+                OnboardingNameView(name: $name, next: next).tag(1)
+                OnboardingValueView(next: next).tag(2)
+                OnboardingPrivacyView(next: next).tag(3)
+                OnboardingComfortView(finish: finish).tag(4)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .background(PulseColors.background.ignoresSafeArea())
         .navigationBarBackButtonHidden()
+        .onAppear {
+            // Pre-fill if a profile already has a name (e.g. re-running onboarding).
+            if name.isEmpty, let existing = profiles.first?.name, !existing.isEmpty {
+                name = existing
+            }
+        }
     }
 
     private func next() {
-        withAnimation(.snappy) {
-            step = min(step + 1, 4)
-        }
+        withAnimation(.snappy) { step = min(step + 1, steps.count - 1) }
     }
 
     private func finish() {
         let profile = profiles.first ?? UserProfile()
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { profile.name = trimmed }
         profile.onboardingCompleted = true
         profile.baselineCompleted = true
         profile.updatedAt = Date()
@@ -346,62 +452,156 @@ struct OnboardingFlowView: View {
 struct OnboardingWelcomeView: View {
     let next: () -> Void
     var body: some View {
-        OnboardingPage(title: "PulseLoop", subtitle: "Your ring data, activity, sleep, and coach in one native app.", systemImage: "circle.hexagongrid.circle.fill", actionTitle: "Get started", action: next)
+        OnboardingPage(
+            title: "Your brain, organized",
+            subtitle: "PulseLoop brings your life  -  health, tasks, notes, and routines  -  into one calm, AI-powered space.",
+            systemImage: "brain.head.profile",
+            actionTitle: "Get started",
+            action: next
+        )
     }
 }
 
-struct OnboardingProfileView: View {
+struct OnboardingNameView: View {
+    @Binding var name: String
     let next: () -> Void
+    @FocusState private var focused: Bool
+
+    private var trimmed: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
-        OnboardingPage(title: "Set profile", subtitle: "Age, body metrics, and preferences help PulseLoop tune goals and summaries.", systemImage: "person.crop.circle", actionTitle: "Save profile", action: next)
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "person.crop.circle")
+                .font(.system(size: 64))
+                .foregroundStyle(PulseColors.textMuted)
+                .accessibilityHidden(true)
+            OnboardingHeader(
+                title: "What should we call you?",
+                subtitle: "Your name personalizes greetings and the way your AI assistant talks to you. You can change it anytime in Settings."
+            )
+
+            TextField("Your name", text: $name)
+                .font(PulseFont.body(17))
+                .foregroundStyle(PulseColors.textPrimary)
+                .textContentType(.givenName)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .focused($focused)
+                .onSubmit { if !trimmed.isEmpty { next() } }
+                .padding(.horizontal, 16).padding(.vertical, 14)
+                .background(PulseColors.fillSubtle, in: RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous).stroke(PulseColors.borderHairline, lineWidth: 1))
+                .padding(.horizontal, 24)
+
+            Spacer()
+            PrimaryButton(title: "Continue", action: next)
+                .padding(.horizontal, 24)
+                .disabled(trimmed.isEmpty)
+                .opacity(trimmed.isEmpty ? 0.5 : 1)
+        }
+        .padding(24)
+        .onAppear {
+            // Defer focus so the paging transition settles before the keyboard.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focused = true }
+        }
     }
 }
 
-struct OnboardingBaselineView: View {
+struct OnboardingValueView: View {
     let next: () -> Void
     var body: some View {
-        OnboardingPage(title: "Learning your baseline", subtitle: "Wear the ring through the day and sync after sleep so trends become personal.", systemImage: "chart.line.uptrend.xyaxis", actionTitle: "Continue", action: next)
+        OnboardingPage(
+            title: "Health at the center",
+            subtitle: "Pair your ring to track heart rate, sleep, and activity  -  then let your AI assistant turn the data into simple daily guidance.",
+            systemImage: "heart.text.square",
+            actionTitle: "Continue",
+            action: next
+        )
     }
 }
 
-struct OnboardingGoalsView: View {
+struct OnboardingPrivacyView: View {
     let next: () -> Void
     var body: some View {
-        VStack(spacing: 18) {
-            OnboardingHeader(title: "Goals", subtitle: "Start with PulseLoop's default daily targets.")
-            MetricTile(title: "Steps", value: "10,000", color: PulseColors.steps, trend: [6, 8, 9, 7, 10])
-            MetricTile(title: "Sleep", value: "8h", color: PulseColors.sleep, trend: [6.5, 7.2, 8, 7.8])
-            PrimaryButton(title: "Save goals", systemImage: "checkmark", action: next)
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "lock.shield")
+                .font(.system(size: 64))
+                .foregroundStyle(PulseColors.textMuted)
+                .accessibilityHidden(true)
+            OnboardingHeader(
+                title: "Private by default",
+                subtitle: "Your data stays on your device. You can connect accounts like email or calendar later, from Settings, whenever a feature needs them  -  never before."
+            )
+            Spacer()
+            PrimaryButton(title: "Sounds good", action: next)
+                .padding(.horizontal, 24)
         }
         .padding(24)
     }
 }
 
-struct OnboardingPairView: View {
+struct OnboardingComfortView: View {
     let finish: () -> Void
+    @AppStorage(ComfortPrefs.reduceMotionKey) private var reduceMotion = false
+    @AppStorage(ComfortPrefs.softHapticsKey) private var softHaptics = true
+    @AppStorage(ComfortPrefs.quietHoursKey) private var quietHours = false
+
     var body: some View {
-        VStack(spacing: 18) {
-            OnboardingHeader(title: "Pair ring", subtitle: "BLE pairing is a later phase. Demo mode uses local SwiftData now.")
-            PulseCard {
-                HStack {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .foregroundStyle(PulseColors.accent)
-                    VStack(alignment: .leading) {
-                        Text("SMART_RING")
-                            .font(.headline)
-                        Text("Demo data active")
-                            .font(.caption)
-                            .foregroundStyle(PulseColors.textMuted)
-                    }
-                    Spacer()
-                    Text("82%")
-                        .monospacedDigit()
-                        .foregroundStyle(PulseColors.battery)
-                }
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "hand.raised")
+                .font(.system(size: 64))
+                .foregroundStyle(PulseColors.textMuted)
+                .accessibilityHidden(true)
+            OnboardingHeader(title: "Comfort profile", subtitle: "Set your sensory preferences. You can change these anytime in Settings.")
+
+            VStack(spacing: 12) {
+                ComfortToggleRow(icon: "wind", title: "Reduce motion", subtitle: "Minimal animations", isOn: $reduceMotion)
+                ComfortToggleRow(icon: "iphone.radiowaves.left.and.right", title: "Soft haptics", subtitle: "Gentle tactile feedback", isOn: $softHaptics)
+                ComfortToggleRow(icon: "moon", title: "Quiet hours", subtitle: "Mute alerts 10pm–7am", isOn: $quietHours)
             }
-            PrimaryButton(title: "Finish setup", systemImage: "checkmark", action: finish)
+            .padding(.horizontal)
+
+            Spacer()
+            PrimaryButton(title: "Enter PulseLoop", action: finish)
+                .padding(.horizontal, 24)
         }
         .padding(24)
+    }
+}
+
+struct ComfortToggleRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(PulseColors.textSecondary)
+                .frame(width: 28)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(PulseFont.bodyMedium(15)).foregroundStyle(PulseColors.textPrimary)
+                Text(subtitle).font(PulseFont.bodySmall).foregroundStyle(PulseColors.textMuted)
+            }
+            Spacer()
+            Toggle("", isOn: $isOn).labelsHidden().tint(PulseColors.accent)
+        }
+        .padding(14)
+        .background(PulseColors.fillSubtle)
+        .clipShape(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+        .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityHint(subtitle)
     }
 }
 
@@ -416,8 +616,9 @@ struct OnboardingPage: View {
         VStack(spacing: 24) {
             Spacer()
             Image(systemName: systemImage)
-                .font(.system(size: 82))
-                .foregroundStyle(PulseColors.accent)
+                .font(.system(size: 64))
+                .foregroundStyle(PulseColors.textMuted)
+                .accessibilityHidden(true)
             OnboardingHeader(title: title, subtitle: subtitle)
             Spacer()
             PrimaryButton(title: actionTitle, action: action)
@@ -432,11 +633,11 @@ struct OnboardingHeader: View {
     var body: some View {
         VStack(spacing: 10) {
             Text(title)
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .font(PulseFont.titleMedium(28))
                 .foregroundStyle(PulseColors.textPrimary)
                 .multilineTextAlignment(.center)
             Text(subtitle)
-                .font(.system(size: 15))
+                .font(PulseFont.body(15))
                 .foregroundStyle(PulseColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
@@ -444,7 +645,7 @@ struct OnboardingHeader: View {
     }
 }
 
-// MARK: - Shared small views
+// MARK: - Shared Small Views
 
 struct SectionHeader: View {
     let title: String
@@ -452,13 +653,13 @@ struct SectionHeader: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(PulseFont.bodySemibold(13))
                 .foregroundStyle(PulseColors.textSecondary)
                 .textCase(.uppercase)
             Spacer()
             if let action {
                 Text(action)
-                    .font(.caption)
+                    .font(PulseFont.bodyMedium(13))
                     .foregroundStyle(PulseColors.accent)
             }
         }
@@ -477,10 +678,9 @@ struct StatusCopy: View {
     var body: some View {
         PulseCard {
             VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(.headline)
+                Text(title).font(PulseFont.bodySemibold(16))
                 Text(text)
-                    .font(.system(size: 14))
+                    .font(PulseFont.body(14))
                     .foregroundStyle(PulseColors.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -502,10 +702,9 @@ struct EmptyStateView: View {
             Image(systemName: "tray")
                 .font(.largeTitle)
                 .foregroundStyle(PulseColors.textMuted)
-            Text(title)
-                .font(.headline)
+            Text(title).font(PulseFont.bodySemibold(16))
             Text(message)
-                .font(.subheadline)
+                .font(PulseFont.body(14))
                 .foregroundStyle(PulseColors.textMuted)
                 .multilineTextAlignment(.center)
         }
@@ -514,16 +713,86 @@ struct EmptyStateView: View {
     }
 }
 
-/// Compact inline empty state for charts/cards (web's `EmptyState` used inside cards).
 struct InlineEmptyState: View {
     let title: String
     let message: String
     var body: some View {
         VStack(spacing: 4) {
-            Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textPrimary)
-            Text(message).font(.system(size: 12)).foregroundStyle(PulseColors.textMuted).multilineTextAlignment(.center)
+            Text(title).font(PulseFont.bodyMedium(14)).foregroundStyle(PulseColors.textPrimary)
+            Text(message).font(PulseFont.body(12)).foregroundStyle(PulseColors.textMuted).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+}
+
+/// Time-of-day greeting.
+func greetingForHour(_ date: Date = Date()) -> String {
+    switch Calendar.current.component(.hour, from: date) {
+    case 5..<12: return "Good morning"
+    case 12..<17: return "Good afternoon"
+    case 17..<22: return "Good evening"
+    default: return "Good night"
+    }
+}
+
+// MARK: - Connection Status Pill (retained for BLE ring)
+
+struct ConnectionStatusPill: View {
+    let state: RingConnectionState
+    let batteryPercent: Int?
+    @Environment(\.motionReduced) private var motionReduced
+    @State private var pulse = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+                .opacity(isPulsing && pulse ? 0.35 : 1)
+            Text(label)
+                .font(PulseFont.bodyMedium(12))
+                .foregroundStyle(PulseColors.textSecondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(PulseColors.fillSubtle, in: Capsule())
+        .overlay(Capsule().stroke(PulseColors.borderHairline, lineWidth: 1))
+        .fixedSize(horizontal: true, vertical: false)
+        .onAppear {
+            guard isPulsing, !motionReduced else { return }
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { pulse = true }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Ring connection")
+        .accessibilityValue(label)
+    }
+
+    private var isPulsing: Bool {
+        state == .connecting || state == .reconnecting || state == .scanning
+    }
+
+    private var dotColor: Color {
+        switch state {
+        case .connected: return PulseColors.success
+        case .connecting, .reconnecting: return PulseColors.textMuted
+        case .scanning: return PulseColors.textMuted
+        case .failed: return PulseColors.alert
+        case .idle, .disconnected: return PulseColors.textFaint
+        }
+    }
+
+    private var label: String {
+        switch state {
+        case .connected:
+            if let battery = batteryPercent, battery > 0 { return "Connected · \(battery)%" }
+            return "Connected"
+        case .connecting, .reconnecting: return "Connecting…"
+        case .scanning: return "Searching…"
+        case .failed: return "Sync failed"
+        case .idle, .disconnected: return "Disconnected"
+        }
     }
 }

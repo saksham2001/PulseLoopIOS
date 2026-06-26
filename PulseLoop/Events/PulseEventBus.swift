@@ -153,7 +153,7 @@ final class EventPersistenceSubscriber {
         case .heartRateComplete, .spo2Progress, .spo2Complete, .workoutStarted, .workoutPaused, .workoutResumed, .workoutFinished, .coachTrace:
             break
         }
-        try? context.save()
+        context.saveOrLog("eventbus")
     }
     
     /// Persist one live/history measurement, record a derived-update audit row, and link it to

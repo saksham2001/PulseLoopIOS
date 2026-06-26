@@ -36,6 +36,7 @@ final class CoachNotificationSlotTests: XCTestCase {
         XCTAssertEqual(n?.title, "Good morning")
     }
 
+    @MainActor
     func testScriptedFallbackIsGrounded() {
         // Build a minimal packet with steps to exercise the evening fallback.
         let packet = NotificationContextPacket(
@@ -60,6 +61,8 @@ final class CoachNotificationServiceTests: XCTestCase {
 
     private func service(_ c: ModelContext, key: String? = "sk-test", client: ResponsesClient? = nil) -> CoachNotificationService {
         let store = CoachSettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        // Coach is opt-out by default; enable it so the generator runs.
+        store.settings.coachMasterEnabled = true
         return CoachNotificationService(
             modelContext: c, coordinator: nil,
             keyStore: StubKeyStore(key: key), settingsStore: store,

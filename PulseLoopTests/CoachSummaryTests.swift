@@ -33,6 +33,9 @@ final class CoachSummaryContentTests: XCTestCase {
 final class CoachSummaryServiceTests: XCTestCase {
     private func service(_ c: ModelContext, key: String? = "sk-test", json: String = summaryJSON()) -> CoachSummaryService {
         let store = CoachSettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        // AI Coach is opt-out by default; these tests exercise the LLM-backed path, so
+        // turn the master switch on for the stubbed client to be used.
+        store.settings.coachMasterEnabled = true
         return CoachSummaryService(
             modelContext: c,
             keyStore: SummaryStubKeyStore(key: key),
@@ -73,7 +76,7 @@ final class CoachSummaryServiceTests: XCTestCase {
 
     func testSleepDayGeneratesOncePerNight() async throws {
         let c = try TestSupport.makeContext()
-        TestSupport.insertSleep(nightStart: Calendar.current.startOfDay(for: Date()),
+        TestSupport.insertSleep(nightStart: SleepService.dayReferenceNight(),
                                 stages: Array(repeating: .light, count: 60) + Array(repeating: .deep, count: 30), into: c)
         let svc = service(c, json: summaryJSON(title: "Solid night", body: "1h30m tracked.", chips: ["Deep sleep?"]))
 

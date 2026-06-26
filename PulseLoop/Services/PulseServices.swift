@@ -121,7 +121,7 @@ enum MetricsService {
         )
         context.insert(DerivedUpdateRow(kind: kind == .heartRate ? "hr_sample" : "spo2_result", entityType: "measurement", entityId: row.id.uuidString))
         _ = ActivityRecorderService.linkSample(kind: kind, value: value, timestamp: row.timestamp, measurementId: row.id, source: .mock, confidence: .known, context: context)
-        try? context.save()
+        context.saveOrLog("pulseServices")
     }
     
     private static func rangeSamples(kind: MeasurementKind, range: MetricRange, context: ModelContext) -> [MetricSample] {
@@ -450,7 +450,7 @@ enum SleepService {
     
     static func sleepRange(_ range: SleepRangeKey, context: ModelContext) -> SleepRangeSummary {
         let expected = expectedNights(for: range)
-        // Day view is "last night" — anchored on the current reference night, not
+        // Day view is "last night"  -  anchored on the current reference night, not
         // the latest recorded one. If nothing was captured we want to show the
         // empty state, not a stale night from days ago. Week/Month/Year keep the
         // last-recorded anchor so historical data still surfaces.
@@ -469,7 +469,7 @@ enum SleepService {
 
     /// The "night to show on the Day view." Sessions are keyed by the date the
     /// night belongs to (the morning of waking). Before 4 AM local we still want
-    /// to show the night that is currently in progress / just ended — i.e.
+    /// to show the night that is currently in progress / just ended  -  i.e.
     /// yesterday's date. From 4 AM onwards we flip to today; if no session
     /// landed under today's key by then, the view shows "no sleep last night".
     static func dayReferenceNight(now: Date = Date(), calendar: Calendar = .current) -> Date {
@@ -699,7 +699,7 @@ enum ActivityRecorderService {
         context.insert(session)
         context.insert(ActivityEvent(sessionId: session.id, kind: "created"))
         context.insert(ActivityEvent(sessionId: session.id, kind: "started"))
-        try? context.save()
+        context.saveOrLog("pulseServices")
         return session
     }
     
@@ -708,7 +708,7 @@ enum ActivityRecorderService {
         session.status = .paused
         context.insert(ActivityEvent(sessionId: session.id, kind: "paused"))
         context.insert(ActivityEvent(sessionId: session.id, kind: "gps_stopped"))
-        try? context.save()
+        context.saveOrLog("pulseServices")
     }
     
     static func resume(_ session: ActivitySession, context: ModelContext) {
@@ -719,14 +719,14 @@ enum ActivityRecorderService {
         session.status = .recording
         context.insert(ActivityEvent(sessionId: session.id, kind: "resumed"))
         context.insert(ActivityEvent(sessionId: session.id, kind: "gps_started"))
-        try? context.save()
+        context.saveOrLog("pulseServices")
     }
     
     static func finish(_ session: ActivitySession, context: ModelContext) {
         _ = ActivityService.finishSummary(for: session, context: context)
         context.insert(ActivityEvent(sessionId: session.id, kind: "gps_stopped"))
         context.insert(ActivityEvent(sessionId: session.id, kind: "finished"))
-        try? context.save()
+        context.saveOrLog("pulseServices")
     }
     
     static func cancel(_ session: ActivitySession, context: ModelContext) {
@@ -735,11 +735,11 @@ enum ActivityRecorderService {
         session.updatedAt = Date()
         context.insert(ActivityEvent(sessionId: session.id, kind: "gps_stopped"))
         context.insert(ActivityEvent(sessionId: session.id, kind: "cancelled"))
-        try? context.save()
+        context.saveOrLog("pulseServices")
     }
     
     /// Permanently deletes a workout and all of its child rows (samples, GPS points, events, sensor
-    /// poll events — all raw-UUID FKs, so no SwiftData cascade) and reverses its contribution to the
+    /// poll events  -  all raw-UUID FKs, so no SwiftData cascade) and reverses its contribution to the
     /// day's activity rollup so the totals stay honest.
     @MainActor
     static func delete(_ session: ActivitySession, context: ModelContext) {
@@ -761,7 +761,7 @@ enum ActivityRecorderService {
         let polls = ((try? context.fetch(FetchDescriptor<ActivitySensorPollEvent>())) ?? []).filter { $0.sessionId == id }
         polls.forEach(context.delete)
         context.delete(session)
-        try? context.save()
+        context.saveOrLog("pulseServices")
     }
 
     static func recoverStaleSession(context: ModelContext) -> [ActivitySession] {

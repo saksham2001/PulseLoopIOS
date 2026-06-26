@@ -98,7 +98,9 @@ final class CoachActionTests: XCTestCase {
     // MARK: gating
 
     func testWriteToolsHiddenWhenDisabled() {
-        let readOnly = CoachFeatureFlags(settings: .default, hasAPIKey: true)  // writes off
+        var settings = CoachSettings.default
+        settings.enableWriteTools = false  // writes now default ON; force off to test gating
+        let readOnly = CoachFeatureFlags(settings: settings, hasAPIKey: true)
         let names = Set(ToolRegistry(flags: readOnly).toolSpecs.compactMap { $0["name"] as? String })
         XCTAssertFalse(names.contains("set_goal"))
         XCTAssertFalse(names.contains("delete_activity_session"))

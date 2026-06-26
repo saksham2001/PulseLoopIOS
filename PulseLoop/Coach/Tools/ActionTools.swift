@@ -8,7 +8,7 @@ import SwiftData
 @MainActor
 enum ActionTools {
     static var writeTools: [AnyCoachTool] {
-        [setGoal, logUserNote, logActivityCorrection, createActivitySession, updateActivitySession, deleteActivitySession]
+        [setGoal, setProfile, logUserNote, logActivityCorrection, createActivitySession, updateActivitySession, deleteActivitySession]
     }
     static var measurementTools: [AnyCoachTool] { [triggerMeasurement] }
 
@@ -44,8 +44,76 @@ enum ActionTools {
             default: return .error("invalid goal_type '\(args.goalType)'")
             }
             goal.updatedAt = Date()
-            try? ctx.modelContext.save()
+            ctx.modelContext.saveOrLog("coach.action")
             return .object(["ok": true, "goal_type": args.goalType, "target": args.target])
+        }
+    }
+
+    // MARK: set_profile
+
+    private struct SetProfileArgs: Decodable {
+        let name: String?
+        let age: Int?
+        let sex: String?
+        let heightCm: Double?
+        let weightKg: Double?
+        let reason: String
+        enum CodingKeys: String, CodingKey {
+            case name, age, sex
+            case heightCm = "height_cm"
+            case weightKg = "weight_kg"
+            case reason
+        }
+    }
+
+    private static var setProfile: AnyCoachTool {
+        .make(
+            name: "set_profile",
+            label: "Updating your profile",
+            description: "Set or update the user's profile fields so personalized calculations (HR zones, BMI, calorie targets) become possible. Pass only the fields the user provides; leave others null. Applies immediately. Use this instead of declining when you lack age/height/weight.",
+            parameters: JSONSchema.object([
+                "name": ["type": ["string", "null"]],
+                "age": ["type": ["integer", "null"]],
+                "sex": ["type": ["string", "null"]],
+                "height_cm": ["type": ["number", "null"]],
+                "weight_kg": ["type": ["number", "null"]],
+                "reason": JSONSchema.string,
+            ], required: ["name", "age", "sex", "height_cm", "weight_kg", "reason"]),
+            argsType: SetProfileArgs.self
+        ) { args, ctx in
+            let profile: UserProfile = {
+                if let existing = try? ctx.modelContext.fetch(FetchDescriptor<UserProfile>()).first {
+                    return existing
+                }
+                let fresh = UserProfile()
+                ctx.modelContext.insert(fresh)
+                return fresh
+            }()
+
+            var changed: [String] = []
+            if let name = args.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+                profile.name = name; changed.append("name")
+            }
+            if let age = args.age, (1...120).contains(age) {
+                profile.age = age; changed.append("age")
+            }
+            if let sex = args.sex?.trimmingCharacters(in: .whitespacesAndNewlines), !sex.isEmpty {
+                profile.sex = sex; changed.append("sex")
+            }
+            if let h = args.heightCm, (50...260).contains(h) {
+                profile.heightCm = h; changed.append("height_cm")
+            }
+            if let w = args.weightKg, (20...400).contains(w) {
+                profile.weightKg = w; changed.append("weight_kg")
+            }
+
+            guard !changed.isEmpty else {
+                return .error("no valid profile fields provided (check ranges: age 1-120, height 50-260cm, weight 20-400kg).")
+            }
+            profile.updatedAt = Date()
+            ctx.modelContext.saveOrLog("coach.action")
+            return .object(["ok": true, "updated": changed,
+                            "note": "Profile updated. You can now compute personalized metrics using these values."])
         }
     }
 
@@ -129,7 +197,7 @@ enum ActionTools {
         .make(
             name: "create_activity_session_from_description",
             label: "Logging your session",
-            description: "Create a finished manual workout from a description. If activity_type and date are known but duration is missing, returns needs_follow_up — ask how long, then call again.",
+            description: "Create a finished manual workout from a description. If activity_type and date are known but duration is missing, returns needs_follow_up  -  ask how long, then call again.",
             parameters: JSONSchema.object([
                 "activity_type": JSONSchema.enumString(activityEnum),
                 "date": JSONSchema.string,
@@ -156,7 +224,7 @@ enum ActionTools {
             )
             ctx.modelContext.insert(session)
             _ = ActivityService.finishSummary(for: session, endedAt: end, context: ctx.modelContext)
-            try? ctx.modelContext.save()
+            ctx.modelContext.saveOrLog("coach.action")
             return .object(["ok": true, "created": true, "activity_id": session.id.uuidString,
                             "type": args.activityType, "duration_min": duration])
         }
@@ -290,6 +358,6 @@ enum ActionTools {
             session.endedAt = session.startedAt.addingTimeInterval(durationMin * 60 + session.totalPauseSeconds)
         }
         session.updatedAt = Date()
-        try? context.save()
+        context.saveOrLog("coach.action.update")
     }
 }

@@ -7,7 +7,9 @@ struct CoachActionCardView: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
-    private var isDestructive: Bool { action.kind == .deleteActivitySession }
+    private var isDestructive: Bool {
+        action.kind == .deleteActivitySession || action.kind == .uninstallSubApp || action.kind == .deleteEntity || action.kind == .removeModuleData
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

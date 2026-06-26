@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// `prepare_chart` — builds a ready-to-render `CoachChart` with embedded data.
+/// `prepare_chart`  -  builds a ready-to-render `CoachChart` with embedded data.
 /// The model copies the returned `chart` object verbatim into the final
 /// response's `chart` field (same contract as the web app).
 @MainActor

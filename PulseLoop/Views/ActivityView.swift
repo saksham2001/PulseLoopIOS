@@ -54,10 +54,24 @@ struct ActivityView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .foregroundStyle(.white)
-                        .background(PulseColors.accent)
+                        .background(Color.black)
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+
+                HStack(spacing: 12) {
+                    ActivityEntryCard(
+                        icon: "dumbbell.fill",
+                        title: "Fitness",
+                        subtitle: "Workouts & strength"
+                    ) { path.append(AppRoute.fitness) }
+                    ActivityEntryCard(
+                        icon: "book.closed.fill",
+                        title: "Journal",
+                        subtitle: "Daily check-in"
+                    ) { path.append(AppRoute.journal) }
+                }
+
 
                 // Today's workouts
                 VStack(alignment: .leading, spacing: 8) {
@@ -109,10 +123,10 @@ struct ActivityView: View {
                 .buttonStyle(.plain)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    MetricCardButton(metric: "steps", label: "Steps", value: summary.steps.map { $0.formatted() } ?? "—", color: PulseColors.steps)
-                    MetricCardButton(metric: "calories", label: "Calories", value: summary.calories.map { Int($0).formatted() } ?? "—", unit: summary.calories == nil ? nil : "kcal", color: PulseColors.calories)
-                    MetricCardButton(metric: "distance", label: "Distance", value: summary.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? "—", unit: summary.distanceMeters == nil ? nil : "km", color: PulseColors.distance)
-                    MetricCardButton(metric: "readiness", label: "Active min", value: summary.activeMinutes.map { "\($0)" } ?? "—", unit: summary.activeMinutes == nil ? nil : "min", color: PulseColors.readiness)
+                    MetricCardButton(metric: "steps", label: "Steps", value: summary.steps.map { $0.formatted() } ?? " - ", color: PulseColors.steps)
+                    MetricCardButton(metric: "calories", label: "Calories", value: summary.calories.map { Int($0).formatted() } ?? " - ", unit: summary.calories == nil ? nil : "kcal", color: PulseColors.calories)
+                    MetricCardButton(metric: "distance", label: "Distance", value: summary.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? " - ", unit: summary.distanceMeters == nil ? nil : "km", color: PulseColors.distance)
+                    MetricCardButton(metric: "readiness", label: "Active min", value: summary.activeMinutes.map { "\($0)" } ?? " - ", unit: summary.activeMinutes == nil ? nil : "min", color: PulseColors.readiness)
                 }
 
                 // Trend graphs with range toggles
@@ -299,5 +313,46 @@ struct WorkoutHistorySheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
         }
         .presentationDetents([.large])
+    }
+}
+
+// MARK: - Activity Entry Card
+
+/// Compact navigation tile used to enter the Fitness dashboard and Journal.
+struct ActivityEntryCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            HapticService.impact(.light)
+            action()
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(PulseColors.accent)
+                    .frame(width: 40, height: 40)
+                    .background(PulseColors.accent.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: PulseRadius.small, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(PulseColors.textPrimary)
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(PulseColors.textMuted)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(PulseColors.card)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(subtitle)")
     }
 }

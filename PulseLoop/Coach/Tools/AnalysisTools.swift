@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// Deterministic analysis tools backed by `AnalysisEngine` — the iOS stand-in
+/// Deterministic analysis tools backed by `AnalysisEngine`  -  the iOS stand-in
 /// for the web app's Python sandbox. No arbitrary code execution.
 @MainActor
 enum AnalysisTools {

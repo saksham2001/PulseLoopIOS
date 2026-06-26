@@ -76,7 +76,7 @@ enum MemoryTools {
             expiresAt: expiresAt
         )
         context.insert(mem)
-        try? context.save()
+        context.saveOrLog("coach.memory")
         return mem
     }
 }

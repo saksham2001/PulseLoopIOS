@@ -46,7 +46,7 @@ enum CoachSummaryContextBuilder {
         )
     }
 
-    // MARK: Sleep — nightly
+    // MARK: Sleep  -  nightly
 
     static func sleepDay(context: ModelContext, now: Date = Date()) -> Built? {
         let range = SleepService.sleepRange(.day, context: context)
@@ -80,7 +80,7 @@ enum CoachSummaryContextBuilder {
         )
     }
 
-    // MARK: Sleep — aggregate
+    // MARK: Sleep  -  aggregate
 
     static func sleepRange(_ range: SleepRangeKey, context: ModelContext, now: Date = Date()) -> Built {
         let summary = SleepService.sleepRange(range, context: context)

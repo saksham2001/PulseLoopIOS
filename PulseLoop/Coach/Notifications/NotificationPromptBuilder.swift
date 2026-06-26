@@ -5,8 +5,8 @@ import Foundation
 enum NotificationPromptBuilder {
     static func systemPrompt(slot: CoachNotificationSlot) -> String {
         let slotGuidance = slot == .morning
-            ? "This is the MORNING check-in: lead with how last night's sleep went and set up the day — a light, motivating plan or one small nudge (move, hydrate, a step target)."
-            : "This is the EVENING check-in: recap the day's activity (steps, active minutes, workouts) and ease toward wind-down — a calm nudge about recovery or tomorrow."
+            ? "This is the MORNING check-in: lead with how last night's sleep went and set up the day  -  a light, motivating plan or one small nudge (move, hydrate, a step target)."
+            : "This is the EVENING check-in: recap the day's activity (steps, active minutes, workouts) and ease toward wind-down  -  a calm nudge about recovery or tomorrow."
 
         return """
         You write a single push notification for PulseLoop, a smart-ring health app. It is a short, friendly daily check-in grounded in the user's own ring data.
@@ -15,7 +15,7 @@ enum NotificationPromptBuilder {
 
         Rules:
         - Output ONLY JSON {"title","body"}. Title ≤ ~6 words; body 1–2 short sentences.
-        - Be specific to today's actual numbers (steps, sleep, heart rate, SpO2, workouts) — never generic filler. Mention a real number when you have one.
+        - Be specific to today's actual numbers (steps, sleep, heart rate, SpO2, workouts)  -  never generic filler. Mention a real number when you have one.
         - Surface ONE clear insight or nudge, not a list.
         - Be warm and engaging, like a thoughtful coach. At most one emoji, and only if it fits.
         - Ground every claim in the provided data. If data is thin, keep it light and honest; never invent numbers.

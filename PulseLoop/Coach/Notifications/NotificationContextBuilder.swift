@@ -5,7 +5,7 @@ import SwiftData
 /// `CoachContextBuilder` for the shared profile/goals/today/sleep/memory blocks
 /// and adds a rolling 12h HR/SpO₂ window plus the slot.
 ///
-/// Each notification is generated **independently** — we deliberately do *not*
+/// Each notification is generated **independently**  -  we deliberately do *not*
 /// thread prior check-ins through this packet. The dedup window for "don't
 /// schedule two of the same slot in one day" lives in `isDuplicate`.
 struct NotificationContextPacket: Encodable {

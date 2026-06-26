@@ -1,6 +1,6 @@
 import Foundation
 
-/// Deterministic Swift analysis over numeric series — the iOS replacement for
+/// Deterministic Swift analysis over numeric series  -  the iOS replacement for
 /// the web app's `run_health_analysis_code` Python sandbox. Covers the common
 /// health-coach questions (trend, period comparison, correlation, outliers,
 /// distribution) without arbitrary code execution.

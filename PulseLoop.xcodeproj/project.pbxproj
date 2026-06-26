@@ -10,6 +10,8 @@
 		41298ABF2FCE7CD300778428 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41298ABE2FCE7CD300778428 /* WidgetKit.framework */; };
 		41298AC12FCE7CD300778428 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41298AC02FCE7CD300778428 /* SwiftUI.framework */; };
 		41298AD02FCE7CD400778428 /* PulseLoopLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 41298ABC2FCE7CD300778428 /* PulseLoopLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA0000000000000000000E10 /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000E11 /* sherpa-onnx.xcframework */; };
+		AA0000000000000000000E20 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000E21 /* onnxruntime.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +52,9 @@
 		41298AD62FCE7D7800778428 /* PulseLoopLiveActivityExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PulseLoopLiveActivityExtension.entitlements; sourceTree = "<group>"; };
 		414761562FCC0F81009EB0EF /* PulseLoop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PulseLoop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000002 /* PulseLoopTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PulseLoopTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA00000000000000000000F0 /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Models; path = Models; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000E11 /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = Frameworks/sherpa-onnx.xcframework; sourceTree = "<group>"; };
+		AA0000000000000000000E21 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = Frameworks/onnxruntime.xcframework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -115,6 +120,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA0000000000000000000E10 /* sherpa-onnx.xcframework in Frameworks */,
+				AA0000000000000000000E20 /* onnxruntime.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -131,6 +138,8 @@
 		41298ABD2FCE7CD300778428 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				AA0000000000000000000E11 /* sherpa-onnx.xcframework */,
+				AA0000000000000000000E21 /* onnxruntime.xcframework */,
 				41298ABE2FCE7CD300778428 /* WidgetKit.framework */,
 				41298AC02FCE7CD300778428 /* SwiftUI.framework */,
 			);
@@ -142,6 +151,7 @@
 			children = (
 				41298AD62FCE7D7800778428 /* PulseLoopLiveActivityExtension.entitlements */,
 				414761582FCC0F81009EB0EF /* PulseLoop */,
+				AA00000000000000000000F0 /* Models */,
 				41298AC22FCE7CD300778428 /* PulseLoopLiveActivity */,
 				41298ABD2FCE7CD300778428 /* Frameworks */,
 				414761572FCC0F81009EB0EF /* Products */,
@@ -199,6 +209,7 @@
 				414761522FCC0F81009EB0EF /* Sources */,
 				414761532FCC0F81009EB0EF /* Frameworks */,
 				414761542FCC0F81009EB0EF /* Resources */,
+				AA00000000000000000000F2 /* Copy TTS Models */,
 				41298AD52FCE7CD400778428 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -211,6 +222,8 @@
 			);
 			name = PulseLoop;
 			packageProductDependencies = (
+				AA00000000000000000000C2 /* WhisperKit */,
+				AA00000000000000000000D2 /* KokoroCoreML */,
 			);
 			productName = PulseLoop;
 			productReference = 414761562FCC0F81009EB0EF /* PulseLoop.app */;
@@ -270,6 +283,10 @@
 			);
 			mainGroup = 4147614D2FCC0F81009EB0EF;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA00000000000000000000C1 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
+				AA00000000000000000000D1 /* XCRemoteSwiftPackageReference "kokoro-coreml" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 414761572FCC0F81009EB0EF /* Products */;
 			projectDirPath = "";
@@ -305,6 +322,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA00000000000000000000F2 /* Copy TTS Models */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy TTS Models";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nSRC=\"${SRCROOT}/Models\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Models\"\nif [ -d \"$SRC\" ]; then\n  rm -rf \"$DST\"\n  mkdir -p \"$DST\"\n  /usr/bin/rsync -a --delete \"$SRC/\" \"$DST/\"\n  echo \"Copied TTS Models tree to $DST\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		41298AB82FCE7CD300778428 /* Sources */ = {
@@ -357,7 +392,7 @@
 				INFOPLIST_FILE = PulseLoopLiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PulseLoopLiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -368,7 +403,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -389,7 +425,7 @@
 				INFOPLIST_FILE = PulseLoopLiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PulseLoopLiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -400,7 +436,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -446,7 +483,7 @@
 				DEVELOPMENT_TEAM = CQUQ9RZMDK;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -461,7 +498,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -510,7 +547,7 @@
 				DEVELOPMENT_TEAM = CQUQ9RZMDK;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -519,7 +556,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -555,12 +592,21 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.sakshambhutani.PulseLoop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -594,12 +640,21 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.sakshambhutani.PulseLoop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -615,12 +670,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CQUQ9RZMDK;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.sakshambhutani.PulseLoopTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -636,12 +692,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CQUQ9RZMDK;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.sakshambhutani.PulseLoopTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -689,6 +746,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA00000000000000000000C1 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/argmax-oss-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		AA00000000000000000000D1 /* XCRemoteSwiftPackageReference "kokoro-coreml" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jud/kokoro-coreml";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.11.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA00000000000000000000C2 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA00000000000000000000C1 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */;
+			productName = WhisperKit;
+		};
+		AA00000000000000000000D2 /* KokoroCoreML */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA00000000000000000000D1 /* XCRemoteSwiftPackageReference "kokoro-coreml" */;
+			productName = KokoroCoreML;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4147614E2FCC0F81009EB0EF /* Project object */;
 }

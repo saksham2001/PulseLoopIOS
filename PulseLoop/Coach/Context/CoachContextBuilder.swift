@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Composes the `CoachContextPacket` from the app's existing derived summaries
-/// and repositories — the Swift analogue of `build_coach_context`. Runs on the
+/// and repositories  -  the Swift analogue of `build_coach_context`. Runs on the
 /// main actor because it reads SwiftData via the `@MainActor` services.
 @MainActor
 enum CoachContextBuilder {
@@ -105,9 +105,95 @@ enum CoachContextBuilder {
             latestSleep: sleep,
             recentWorkouts: recentWorkouts(context: context),
             memories: memories(context: context),
+            learnings: learnings(context: context),
             conversationSummary: conversationSummary,
-            dataQualityWarnings: warnings
+            dataQualityWarnings: warnings,
+            modules: modulesContext(),
+            trips: tripsContext(context: context, now: now),
+            connectedWearables: connectedWearables()
         )
+    }
+
+    /// Display names of any connected third-party wearable accounts. Reads the
+    /// Keychain-backed token store directly (no main-actor hop), so the coach is
+    /// aware of Fitbit/Google Fit links without a tool call.
+    private static func connectedWearables() -> [String] {
+        WearableProvider.allCases
+            .filter { WearableTokenStore(provider: $0).isConnected }
+            .map(\.displayName)
+    }
+
+    // MARK: - Travel awareness (X5)
+
+    /// Compact active/upcoming trip snapshot so the assistant knows the user is
+    /// (or is about to be) traveling without a `list_trips` round-trip. Limited to
+    /// the most relevant few; cancelled/old past trips are dropped.
+    private static func tripsContext(context: ModelContext, now: Date, limit: Int = 4) -> [CoachContextPacket.TripContext] {
+        guard SubAppRegistry.shared.isInstalled(SubAppID(AppModule.travel.rawValue)) else { return [] }
+        let trips = (try? context.fetch(FetchDescriptor<Trip>())) ?? []
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+
+        func phase(_ trip: Trip) -> (String, Int?) {
+            guard let start = trip.startDate else { return ("upcoming", nil) }
+            let startDay = cal.startOfDay(for: start)
+            let endDay = trip.endDate.map { cal.startOfDay(for: $0) } ?? startDay
+            if today >= startDay && today <= endDay { return ("active today", 0) }
+            if today < startDay {
+                return ("upcoming", cal.dateComponents([.day], from: today, to: startDay).day)
+            }
+            return ("past", nil)
+        }
+
+        let openChecklists = openChecklistCounts(context: context)
+
+        return trips
+            .filter { $0.status != .cancelled }
+            .map { trip -> (CoachContextPacket.TripContext, Date) in
+                let (ph, days) = phase(trip)
+                let ctx = CoachContextPacket.TripContext(
+                    id: trip.id.uuidString,
+                    destination: trip.destination,
+                    status: trip.status.rawValue,
+                    startDate: trip.startDate.map(localDate),
+                    endDate: trip.endDate.map(localDate),
+                    phase: ph,
+                    daysUntil: days,
+                    itemCount: trip.items.count,
+                    openChecklistCount: openChecklists[trip.id] ?? 0
+                )
+                return (ctx, trip.startDate ?? trip.createdAt)
+            }
+            // Keep active + soonest-upcoming first; drop trips that ended.
+            .filter { $0.0.phase != "past" }
+            .sorted { ($0.1) < ($1.1) }
+            .prefix(limit)
+            .map { $0.0 }
+    }
+
+    private static func openChecklistCounts(context: ModelContext) -> [UUID: Int] {
+        let tasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        var counts: [UUID: Int] = [:]
+        for task in tasks where task.status != .done {
+            guard let tripId = task.tripId else { continue }
+            counts[tripId, default: 0] += 1
+        }
+        return counts
+    }
+
+    // MARK: - Module awareness (M3)
+
+    /// Compact installed-vs-available module snapshot so the assistant can route
+    /// to the right module or offer to install one without a `list_modules` round-trip.
+    private static func modulesContext() -> CoachContextPacket.ModulesContext {
+        let registry = SubAppRegistry.shared
+        func summarize(_ app: any SubApp) -> CoachContextPacket.ModulesContext.ModuleSummary {
+            .init(id: app.id.rawValue, name: app.displayName, summary: app.summary)
+        }
+        let installed = registry.subApps.filter { registry.isInstalled($0.id) }.map(summarize)
+        let available = registry.subApps.filter { !registry.isInstalled($0.id) }.map(summarize)
+        let updates = registry.modulesWithUpdates.map { $0.id.rawValue }
+        return .init(installed: installed, available: available, updatesAvailable: updates)
     }
 
     // MARK: - Helpers
@@ -142,6 +228,17 @@ enum CoachContextBuilder {
             .filter { $0.expiresAt == nil || $0.expiresAt! > now }  // drop expired
             .prefix(limit)
             .map { .init(type: $0.memoryType, key: $0.key, value: $0.value, importance: $0.importance) }
+    }
+
+    private static func learnings(context: ModelContext, limit: Int = 10) -> [CoachContextPacket.LearningContext] {
+        let descriptor = FetchDescriptor<DailyLearning>(
+            sortBy: [SortDescriptor(\.importance, order: .reverse), SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows
+            .filter { $0.isActive }
+            .prefix(limit)
+            .map { .init(category: $0.category.rawValue, title: $0.title, detail: $0.detail, importance: $0.importance) }
     }
 
     private static func profileCompleteness(_ profile: UserProfile?) -> String {

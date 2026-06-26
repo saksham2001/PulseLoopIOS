@@ -7,7 +7,6 @@ struct TodayView: View {
     @Query(filter: #Predicate<CoachSummary> { $0.kind == "today" }, sort: \CoachSummary.updatedAt, order: .reverse)
     private var todaySummaries: [CoachSummary]
     @Binding var path: NavigationPath
-    @Binding var selectedTab: MainTab
     @State private var measuring: MeasurementSheet.Kind?
     @State private var coachStore = CoachSettingsStore.shared
 
@@ -23,8 +22,8 @@ struct TodayView: View {
                 HeroInsightCardView(title: hero.title, summary: hero.summary, chips: hero.chips)
 
                 if coachEnabled {
-                    Button { selectedTab = .coach } label: {
-                        Text("Ask Coach")
+                    Button { } label: {
+                        Text("Ask Assistant")
                             .font(.system(size: 14, weight: .semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
@@ -38,7 +37,7 @@ struct TodayView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     MetricCardButton(
                         metric: "steps", label: "Steps",
-                        value: summary.steps.map { $0.formatted() } ?? "—",
+                        value: summary.steps.map { $0.formatted() } ?? " - ",
                         color: PulseColors.steps,
                         delta: TodayInsights.deltaFor(summary, value: summary.steps.map(Double.init), series: summary.trends.steps7d.map(\.value)),
                         sparkline: summary.trends.steps7d.map(\.value)
@@ -61,14 +60,14 @@ struct TodayView: View {
                     )
                     MetricCardButton(
                         metric: "sleep", label: "Sleep",
-                        value: summary.sleep.map { SleepFormat.duration($0.session.totalMinutes) } ?? "—",
+                        value: summary.sleep.map { SleepFormat.duration($0.session.totalMinutes) } ?? " - ",
                         color: PulseColors.sleep,
                         sparkline: summary.sleep.map { [Double($0.lightMinutes), Double($0.deepMinutes), Double($0.awakeMinutes)] } ?? [],
-                        onTap: { selectedTab = .sleep }
+                        onTap: { }
                     )
                     MetricCardButton(
                         metric: "calories", label: "Calories",
-                        value: summary.calories.map { Int($0).formatted() } ?? "—",
+                        value: summary.calories.map { Int($0).formatted() } ?? " - ",
                         unit: summary.calories == nil ? nil : "kcal",
                         color: PulseColors.calories,
                         delta: TodayInsights.deltaFor(summary, value: summary.calories, series: summary.trends.calories7d.map(\.value)),
@@ -76,7 +75,7 @@ struct TodayView: View {
                     )
                     MetricCardButton(
                         metric: "distance", label: "Distance",
-                        value: summary.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? "—",
+                        value: summary.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? " - ",
                         unit: summary.distanceMeters == nil ? nil : "km",
                         color: PulseColors.distance,
                         delta: TodayInsights.deltaFor(summary, value: summary.distanceMeters.map { $0 / 1000 }, series: summary.trends.distance7d.map { $0.value / 1000 }),
@@ -86,13 +85,13 @@ struct TodayView: View {
 
                 if coachEnabled {
                     Button {
-                        if let coachSummary { summaryService.openInChat(coachSummary) } else { selectedTab = .coach }
+                        if let coachSummary { summaryService.openInChat(coachSummary) }
                     } label: {
                         CoachMessageCard(
                             headline: coachSummary?.title ?? (summary.calibration.isCalibrating ? "Baseline in progress" : "Want a recap?"),
                             body: coachSummary?.body ?? (summary.calibration.isCalibrating
                                 ? "I can help explain what data is collected and what is still missing."
-                                : "Want a summary from the latest ring context? Tap to open the coach."),
+                                : "Want a summary from the latest ring context? Tap to open the assistant."),
                             chips: coachSummary?.chips ?? []
                         )
                     }
@@ -191,14 +190,14 @@ enum TodayInsights {
 
     static func hrRangeLabel(_ samples: [MetricSample], _ fallback: Double?) -> String {
         let values = samples.map(\.value).filter { $0 > 0 }
-        guard !values.isEmpty else { return fallback.map { "\(Int($0.rounded()))" } ?? "—" }
+        guard !values.isEmpty else { return fallback.map { "\(Int($0.rounded()))" } ?? " - " }
         let lo = Int(values.min()!.rounded()), hi = Int(values.max()!.rounded())
         return lo == hi ? "\(lo)" : "\(lo)-\(hi)"
     }
 
     static func averageLabel(_ samples: [MetricSample], _ fallback: Double?) -> String {
         let values = samples.map(\.value).filter { $0 > 0 }
-        guard !values.isEmpty else { return fallback.map { "\(Int($0.rounded()))" } ?? "—" }
+        guard !values.isEmpty else { return fallback.map { "\(Int($0.rounded()))" } ?? " - " }
         return "\(Int((values.reduce(0, +) / Double(values.count)).rounded()))"
     }
 
@@ -241,7 +240,7 @@ enum TodayInsights {
         if stepsDelta >= 20 { title = "Building momentum" }
         else if stepsDelta <= -20 { title = "Take it easy" }
 
-        let hrStr = today.latestHeartRate.map { "\(Int($0.value)) bpm" } ?? "—"
+        let hrStr = today.latestHeartRate.map { "\(Int($0.value)) bpm" } ?? " - "
         let summaryText = today.sleep == nil
             ? "You're at \(steps.formatted()) steps. Sync after waking to add recovery context."
             : "You're at \(steps.formatted()) steps, \(SleepFormat.duration(today.sleep!.session.totalMinutes)) of sleep, and your latest reading is \(hrStr)."

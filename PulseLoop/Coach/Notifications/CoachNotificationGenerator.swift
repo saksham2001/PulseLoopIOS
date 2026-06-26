@@ -1,7 +1,7 @@
 import Foundation
 
 /// Single-shot OpenAI call that turns a 12h context packet into a check-in.
-/// No tools — just system + developer → strict `{title, body}`. Falls back to a
+/// No tools  -  just system + developer → strict `{title, body}`. Falls back to a
 /// deterministic, grounded notification if disabled or the API fails, so a
 /// delivered check-in is always sensible.
 @MainActor
@@ -38,14 +38,14 @@ enum CoachNotificationGenerator {
             if let sleep = packet.latestSleep {
                 let h = sleep.totalMin / 60, m = sleep.totalMin % 60
                 return CoachNotification(title: "Good morning\(name)",
-                                         body: "You logged \(h)h \(m)m of sleep. Here's to a strong day — get moving when you can.")
+                                         body: "You logged \(h)h \(m)m of sleep. Here's to a strong day  -  get moving when you can.")
             }
             return CoachNotification(title: "Good morning\(name)",
                                      body: "Ready to start the day? Take a measurement and I'll help you plan it.")
         case .evening:
             if let steps = packet.today.steps {
                 let goal = packet.goals.stepsDaily
-                let hit = steps >= goal ? "You hit your \(goal) step goal — nice work." : "\(goal - steps) steps to your goal."
+                let hit = steps >= goal ? "You hit your \(goal) step goal  -  nice work." : "\(goal - steps) steps to your goal."
                 return CoachNotification(title: "Evening check-in",
                                          body: "\(steps) steps today. \(hit) Time to start winding down.")
             }

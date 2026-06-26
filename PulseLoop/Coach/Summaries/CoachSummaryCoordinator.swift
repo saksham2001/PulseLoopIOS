@@ -13,7 +13,7 @@ final class CoachSummaryCoordinator {
     private var pendingToday = false
     private var pendingSleep = false
 
-    /// Debounce window — long enough for a sleep download / activity sync to settle.
+    /// Debounce window  -  long enough for a sleep download / activity sync to settle.
     private let debounceSeconds: UInt64 = 30
 
     init(context: ModelContext) {

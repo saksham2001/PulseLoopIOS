@@ -346,7 +346,7 @@ struct RecordLiveView: View {
                                 LiveStatTile(value: distanceLabel(points: points, session: session), label: "Distance")
                             }
                             LiveSensorTile(
-                                value: coordinator.latestHRValue.map { "\($0)" } ?? "—",
+                                value: coordinator.latestHRValue.map { "\($0)" } ?? " - ",
                                 unit: coordinator.latestHRValue == nil ? nil : "bpm",
                                 label: "Heart rate",
                                 subtitle: hrSubtitle(session),
@@ -355,7 +355,7 @@ struct RecordLiveView: View {
                                 muted: coordinator.latestHRValue == nil
                             )
                             LiveSensorTile(
-                                value: coordinator.latestSpO2Value.map { "\($0)%" } ?? "—",
+                                value: coordinator.latestSpO2Value.map { "\($0)%" } ?? " - ",
                                 unit: nil,
                                 label: "SpO₂",
                                 subtitle: spo2Subtitle(session, now: timeline.date),
@@ -386,7 +386,7 @@ struct RecordLiveView: View {
                             }
 
                             if gps.isPermissionDenied {
-                                Text("Location access is denied — enable it in Settings to record your route.")
+                                Text("Location access is denied  -  enable it in Settings to record your route.")
                                     .font(.caption).foregroundStyle(PulseColors.warning).multilineTextAlignment(.center)
                             }
                         } else if paused {
@@ -488,14 +488,14 @@ struct RecordLiveView: View {
     // MARK: live stats
 
     private func distanceLabel(points: [ActivityGpsPoint], session: ActivitySession) -> String {
-        guard session.useGps else { return "—" }
+        guard session.useGps else { return " - " }
         let meters = routeDistance(points)
-        return meters > 0 ? String(format: "%.2f km", meters / 1000) : "—"
+        return meters > 0 ? String(format: "%.2f km", meters / 1000) : " - "
     }
 
     private func paceLabel(points: [ActivityGpsPoint], elapsedSec: Int, session: ActivitySession) -> String {
-        guard session.useGps else { return "—" }
-        return ActivityMeta.pace(distanceMeters: routeDistance(points), durationSeconds: elapsedSec) ?? "—"
+        guard session.useGps else { return " - " }
+        return ActivityMeta.pace(distanceMeters: routeDistance(points), durationSeconds: elapsedSec) ?? " - "
     }
 
     private func routeDistance(_ points: [ActivityGpsPoint]) -> Double {
@@ -672,7 +672,7 @@ struct RecordSummaryView: View {
 
 // MARK: - Summary components
 
-/// The full rich body of a finished workout — header, hero band, stat grid, map, splits, HR chart
+/// The full rich body of a finished workout  -  header, hero band, stat grid, map, splits, HR chart
 /// + zones, SpO₂ chart, elevation profile, and the recording-quality card. Shared by the
 /// post-record summary (`RecordSummaryView`) and the activity detail screen (`ActivityDetailView`)
 /// so the two never drift apart. Read-only; each host supplies its own footer (editable
@@ -800,12 +800,12 @@ struct WorkoutMetricsSections: View {
         // indoor: duration/active-min/calories), so the grid fills in the rest without repeating.
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
             if session.useGps {
-                WorkoutStat(label: "Calories", value: session.calories.map { "\(Int($0))" } ?? "—")
+                WorkoutStat(label: "Calories", value: session.calories.map { "\(Int($0))" } ?? " - ")
             }
-            WorkoutStat(label: "Avg HR", value: session.avgHeartRate.map { "\(Int($0))" } ?? "—")
-            WorkoutStat(label: "Max HR", value: session.maxHeartRate.map { "\(Int($0))" } ?? "—")
-            WorkoutStat(label: "Min HR", value: session.minHeartRate.map { "\(Int($0))" } ?? "—")
-            WorkoutStat(label: "SpO₂", value: session.latestSpO2.map { "\(Int($0))%" } ?? "—")
+            WorkoutStat(label: "Avg HR", value: session.avgHeartRate.map { "\(Int($0))" } ?? " - ")
+            WorkoutStat(label: "Max HR", value: session.maxHeartRate.map { "\(Int($0))" } ?? " - ")
+            WorkoutStat(label: "Min HR", value: session.minHeartRate.map { "\(Int($0))" } ?? " - ")
+            WorkoutStat(label: "SpO₂", value: session.latestSpO2.map { "\(Int($0))%" } ?? " - ")
             if session.useGps, let elevationGain {
                 WorkoutStat(label: "Elev gain", value: String(format: "%.0f m", elevationGain))
             }
@@ -822,20 +822,20 @@ private struct SummaryHeroBand: View {
     private struct Metric { let value: String; let label: String; let tint: Color }
 
     private var metrics: [Metric] {
-        let dur = durationSeconds.map { ActivityMeta.duration($0) } ?? "—"
+        let dur = durationSeconds.map { ActivityMeta.duration($0) } ?? " - "
         if session.useGps {
-            let dist = session.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? "—"
+            let dist = session.distanceMeters.map { String(format: "%.2f", $0 / 1000) } ?? " - "
             let pace = ActivityMeta.pace(distanceMeters: session.distanceMeters, durationSeconds: durationSeconds)
             return [
                 Metric(value: dist, label: "KM", tint: PulseColors.distance),
                 Metric(value: dur, label: "DURATION", tint: PulseColors.textPrimary),
-                Metric(value: pace?.replacingOccurrences(of: " /km", with: "") ?? "—", label: "PACE /KM", tint: PulseColors.accent)
+                Metric(value: pace?.replacingOccurrences(of: " /km", with: "") ?? " - ", label: "PACE /KM", tint: PulseColors.accent)
             ]
         } else {
-            let cals = session.calories.map { "\(Int($0))" } ?? "—"
+            let cals = session.calories.map { "\(Int($0))" } ?? " - "
             return [
                 Metric(value: dur, label: "DURATION", tint: PulseColors.textPrimary),
-                Metric(value: durationSeconds.map { "\($0 / 60)" } ?? "—", label: "ACTIVE MIN", tint: PulseColors.success),
+                Metric(value: durationSeconds.map { "\($0 / 60)" } ?? " - ", label: "ACTIVE MIN", tint: PulseColors.success),
                 Metric(value: cals, label: "CALORIES", tint: PulseColors.calories)
             ]
         }
@@ -941,7 +941,7 @@ private struct HRZonesCard: View {
                             }
                         }
                         .frame(height: 8)
-                        Text(zone.seconds >= 1 ? ActivityMeta.duration(Int(zone.seconds)) : "—")
+                        Text(zone.seconds >= 1 ? ActivityMeta.duration(Int(zone.seconds)) : " - ")
                             .font(.system(size: 12, weight: .medium).monospacedDigit())
                             .foregroundStyle(zone.seconds >= 1 ? PulseColors.textPrimary : PulseColors.textMuted)
                             .frame(width: 56, alignment: .trailing)
@@ -1026,7 +1026,7 @@ struct WorkoutStatusStrip: View {
         return a <= 10 ? ("Good", PulseColors.success) : ("Weak", PulseColors.warning)
     }
 
-    /// Ring pill: green when linked, amber while (re)connecting, red when dropped — so the user sees
+    /// Ring pill: green when linked, amber while (re)connecting, red when dropped  -  so the user sees
     /// the workout is handling a disconnect rather than silently stalling.
     private var ringLabel: (String, Color) {
         switch ringState {
@@ -1061,9 +1061,9 @@ struct SplitStrip: View {
     var body: some View {
         let splits = kmSplits()
         HStack(spacing: 12) {
-            WorkoutStat(label: "Last km", value: splits.last ?? "—")
-            WorkoutStat(label: "Best km", value: splits.best ?? "—")
-            WorkoutStat(label: "This km", value: splits.current ?? "—")
+            WorkoutStat(label: "Last km", value: splits.last ?? " - ")
+            WorkoutStat(label: "Best km", value: splits.best ?? " - ")
+            WorkoutStat(label: "This km", value: splits.current ?? " - ")
         }
     }
 
@@ -1122,9 +1122,9 @@ struct RecordingQualityCard: View {
             let accepted = session.gpsPointCount
             let total = accepted + session.rejectedGpsPointCount
             let coverage = total > 0 ? Int(Double(accepted) / Double(total) * 100) : 0
-            rows.append(("GPS coverage", total > 0 ? "\(coverage)%" : "—", coverage >= 80 ? PulseColors.success : PulseColors.warning))
+            rows.append(("GPS coverage", total > 0 ? "\(coverage)%" : " - ", coverage >= 80 ? PulseColors.success : PulseColors.warning))
             rows.append(("Dropped GPS points", "\(session.rejectedGpsPointCount)", session.rejectedGpsPointCount == 0 ? PulseColors.textPrimary : PulseColors.warning))
-            rows.append(("Distance source", session.distanceMeters != nil ? "GPS route" : "—", PulseColors.textPrimary))
+            rows.append(("Distance source", session.distanceMeters != nil ? "GPS route" : " - ", PulseColors.textPrimary))
         } else {
             rows.append(("Distance source", "Not tracked", PulseColors.textMuted))
         }

@@ -53,7 +53,7 @@ enum RingEventBridge {
             return [.deviceStateChanged(state: .connected, address: address)]
 
         case .timeSyncAck, .commandAck, .unknown:
-            // No typed measurement — the raw packet was already logged for the debug feed.
+            // No typed measurement  -  the raw packet was already logged for the debug feed.
             return []
         }
     }

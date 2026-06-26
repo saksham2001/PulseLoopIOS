@@ -4,7 +4,7 @@ import SwiftData
 /// Owns the Today/Sleep coach-card summaries: self-gating regeneration and the
 /// tap → seeded-chat flow. Read the current summary for a card with
 /// `current(...)`; trigger regeneration with the `refresh…IfNeeded` methods
-/// (safe to call often — they gate on data signature + rate limit).
+/// (safe to call often  -  they gate on data signature + rate limit).
 @MainActor
 final class CoachSummaryService {
     private let modelContext: ModelContext
@@ -19,7 +19,7 @@ final class CoachSummaryService {
         modelContext: ModelContext,
         keyStore: APIKeyStore = OpenAIKeychainStore(),
         settingsStore: CoachSettingsStore = .shared,
-        clientFactory: @escaping (String) -> ResponsesClient = { OpenAIResponsesClient(apiKey: $0) }
+        clientFactory: @escaping (String) -> ResponsesClient = { OpenRouterResponsesClient(apiKey: $0) }
     ) {
         self.modelContext = modelContext
         self.keyStore = keyStore
@@ -88,7 +88,10 @@ final class CoachSummaryService {
         _ kind: CoachSummaryKind, built: CoachSummaryContextBuilder.Built,
         existing: CoachSummary?, now: Date
     ) async {
-        let apiKey = (try? keyStore.readKey()) ?? nil
+        // Prefer the injected key store (lets tests/alt-providers supply a key
+        // without depending on a bundled secret); fall back to the app's resolved
+        // OpenRouter key for the normal runtime path.
+        let apiKey = (try? keyStore.readKey()).flatMap { $0 } ?? AIService.shared.currentAPIKey
         let flags = CoachFeatureFlags(settings: settingsStore.settings, hasAPIKey: apiKey != nil)
         let content = await CoachSummaryGenerator.generate(
             kind: kind, contextJSON: built.json, fallback: built.fallback,
@@ -103,7 +106,7 @@ final class CoachSummaryService {
                 dataSignature: built.signature
             ))
         }
-        try? modelContext.save()
+        modelContext.saveOrLog("coach.summary")
     }
 
     // MARK: - Tap → seeded chat
@@ -124,7 +127,7 @@ final class CoachSummaryService {
             cardsJSON: content.asCoachResponse().encodedJSON()
         ))
         summary.conversationId = convo.id
-        try? modelContext.save()
+        modelContext.saveOrLog("coach.summary")
         CoachNavigation.shared.open(convo.id)
     }
 

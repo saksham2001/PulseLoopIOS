@@ -8,7 +8,7 @@ import SwiftData
 /// every ~5min, reusing `RingSyncCoordinator.measureHR()` / `measureSpO2()` (which also persist the
 /// sample and link it to the active session). Every attempt is recorded as an
 /// `ActivitySensorPollEvent` for the recording-quality report, and per-session bookkeeping counters
-/// are kept in sync. HR and SpO2 reads never overlap — there is only one ring.
+/// are kept in sync. HR and SpO2 reads never overlap  -  there is only one ring.
 @MainActor
 final class WorkoutSensorPollingService: ObservableObject {
     private enum SensorKind {
@@ -28,7 +28,7 @@ final class WorkoutSensorPollingService: ObservableObject {
 
     private let hrInterval: TimeInterval = 60
     private let spo2Interval: TimeInterval = 300
-    /// While the ring is disconnected we don't burn the full interval — retry soon so a reconnect
+    /// While the ring is disconnected we don't burn the full interval  -  retry soon so a reconnect
     /// triggers a real read within ~10 s instead of up to a minute later.
     private let disconnectedRetry: TimeInterval = 10
 
@@ -143,7 +143,7 @@ final class WorkoutSensorPollingService: ObservableObject {
             return true
         }
 
-        // Ring is down (out of range / reconnecting): don't fail the read — skip and retry soon so
+        // Ring is down (out of range / reconnecting): don't fail the read  -  skip and retry soon so
         // we resume promptly once it reconnects, without piling up false failures or hammering it.
         guard coordinator.isConnected else {
             record(kind: kindRaw, status: "skipped", errorMessage: "ring disconnected")
@@ -190,6 +190,6 @@ final class WorkoutSensorPollingService: ObservableObject {
                 errorMessage: errorMessage
             )
         )
-        try? context.save()
+        context.saveOrLog("sensorPoll")
     }
 }

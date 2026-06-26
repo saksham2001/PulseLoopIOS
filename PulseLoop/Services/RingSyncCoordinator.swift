@@ -4,7 +4,7 @@ import SwiftData
 /// High-level orchestration of ring command flows. Subscribes to `PulseEventBus` to track the
 /// latest measurement values and completion signals, and exposes app-facing actions
 /// (`syncNow`, `measureHR`, `measureSpO2`, `querySleep`, `setGoal`). It only *orchestrates*
-/// command writes — persistence is handled by `EventPersistenceSubscriber`.
+/// command writes  -  persistence is handled by `EventPersistenceSubscriber`.
 @MainActor
 @Observable
 final class RingSyncCoordinator {
@@ -89,7 +89,7 @@ final class RingSyncCoordinator {
 
     // MARK: - Workout HR streaming
 
-    /// Begin continuous live HR (0x14 stream) for the duration of a workout — the tightest cadence
+    /// Begin continuous live HR (0x14 stream) for the duration of a workout  -  the tightest cadence
     /// the ring supports. Samples persist via `EventPersistenceSubscriber` and attach to the active
     /// session through `ActivityRecorderService.linkSample`.
     func startWorkoutHeartRate() {
@@ -126,7 +126,7 @@ final class RingSyncCoordinator {
         } else {
             context.insert(UserGoal(steps: steps))
         }
-        try? context.save()
+        context.saveOrLog("ring.sync")
     }
 
     /// Start HR streaming, collect for the warm-up window, stop, and return the latest bpm.

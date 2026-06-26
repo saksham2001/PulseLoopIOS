@@ -101,7 +101,7 @@ struct SleepView: View {
                 InlineEmptyState(title: "No sleep recorded", message: "Wear your ring overnight to see your hypnogram here.")
                     .frame(height: 180)
             }
-            SleepStageSummaryCardsView(deep: "—", light: "—", awake: "—")
+            SleepStageSummaryCardsView(deep: " - ", light: " - ", awake: " - ")
             if coachEnabled {
                 CoachMessageCard(headline: SleepInsights.dayNoDataCoach.headline, body: SleepInsights.dayNoDataCoach.body, chips: SleepInsights.dayNoDataCoach.chips)
             }
@@ -136,13 +136,21 @@ struct SleepView: View {
             noData: !enough
         )
         VisualizationCard(eyebrow: "Duration", title: vizTitle, legend: false) {
-            SleepDurationHistogramChart(bars: bars, goalMin: goalMin, slim: range == .month)
+            if enough {
+                SleepDurationHistogramChart(bars: bars, goalMin: goalMin, slim: range == .month)
+            } else {
+                InlineEmptyState(
+                    title: "Not enough nights yet",
+                    message: "Track at least 2 nights in this range to see your sleep trend and averages."
+                )
+                .frame(height: 180)
+            }
         }
         SleepStageSummaryCardsView(
             prefix: "Avg ",
-            deep: stageAvg.map { SleepFormat.duration($0.deep) } ?? "—",
-            light: stageAvg.map { SleepFormat.duration($0.light) } ?? "—",
-            awake: stageAvg.map { SleepFormat.duration($0.awake) } ?? "—"
+            deep: stageAvg.map { SleepFormat.duration($0.deep) } ?? " - ",
+            light: stageAvg.map { SleepFormat.duration($0.light) } ?? " - ",
+            awake: stageAvg.map { SleepFormat.duration($0.awake) } ?? " - "
         )
         summaryCard(rangeSummary(range), fallback: coach)
     }

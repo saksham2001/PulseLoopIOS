@@ -195,7 +195,7 @@ struct RingEncoder {
     func makeSpO2StopCommand() -> Data { data(hex: "2300000000000000000000000000000000000000") }
     func makeFindRingCommand() -> Data { data(hex: "040a000000000000000000000000000000000000") }
 
-    /// Daily step goal command (0x1a) — opcode + u32 little-endian goal value, zero-padded.
+    /// Daily step goal command (0x1a)  -  opcode + u32 little-endian goal value, zero-padded.
     /// Protocol.md: `1a 10 27 00 00 …` sets a 10000-step goal.
     func makeGoalCommand(steps: Int) -> Data {
         var bytes = [UInt8](repeating: 0, count: 20)
@@ -209,7 +209,7 @@ struct RingEncoder {
     }
 
     /// Automatic background heart-rate schedule (0x19). Protocol.md:
-    /// `19 00 00 17 3b <enable> <cadenceMin> 02 …` — window 00:00–23:59, enable flag, cadence in
+    /// `19 00 00 17 3b <enable> <cadenceMin> 02 …`  -  window 00:00–23:59, enable flag, cadence in
     /// minutes, mode 0x02. Used to restore the ring's normal background cadence after a workout's
     /// live HR stream is stopped.
     func makeAutomaticHeartRateCommand(enabled: Bool, cadenceMinutes: Int = 30) -> Data {

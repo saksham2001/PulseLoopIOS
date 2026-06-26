@@ -4,7 +4,7 @@ import Foundation
 /// keeping the spirit of the web app's warnings so the coach never over-claims.
 enum DataQualityAnalyzer {
     static let sleepDecoderNote =
-        "Sleep stage decoding is experimental — light/deep/awake only, no REM; awake time may read as zero."
+        "Sleep stage decoding is experimental  -  light/deep/awake only, no REM; awake time may read as zero."
 
     struct Inputs {
         var profileCompleteness: String       // empty | partial | complete
@@ -30,7 +30,7 @@ enum DataQualityAnalyzer {
 
         if input.daysAvailable <= 3 {
             out.append(
-                "Only \(input.daysAvailable) day(s) of activity data available — "
+                "Only \(input.daysAvailable) day(s) of activity data available  -  "
                 + "trends are limited; avoid strong week-over-week claims."
             )
         }
@@ -43,10 +43,10 @@ enum DataQualityAnalyzer {
             if let last = input.lastSyncAt {
                 let hours = Int(now.timeIntervalSince(last) / 3600)
                 if hours >= 12 {
-                    out.append("Ring hasn't synced in ~\(hours)h — today's data may be stale.")
+                    out.append("Ring hasn't synced in ~\(hours)h  -  today's data may be stale.")
                 }
             } else {
-                out.append("No recent ring sync recorded — data may be incomplete.")
+                out.append("No recent ring sync recorded  -  data may be incomplete.")
             }
         }
 

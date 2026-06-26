@@ -106,7 +106,7 @@ enum SleepScore {
 
 enum SleepFormat {
     static func duration(_ minutes: Int?) -> String {
-        guard let minutes, minutes >= 0 else { return "—" }
+        guard let minutes, minutes >= 0 else { return " - " }
         let h = minutes / 60
         let m = minutes % 60
         if h <= 0 { return "\(m)m" }
@@ -268,12 +268,12 @@ enum SleepInsights {
             let sparse = Double(valid.count) < Double(expectedNights) * 0.5
             let body = sparse
                 ? "Your monthly average is \(avgText), but coverage is low (\(coveragePhrase)), so I'd treat that number cautiously. More nights tracked will sharpen the trend."
-                : "Your monthly average is \(avgText) across \(coveragePhrase). The biggest lever is consistency — a few short nights move this number more than any single great one."
+                : "Your monthly average is \(avgText) across \(coveragePhrase). The biggest lever is consistency  -  a few short nights move this number more than any single great one."
             return SleepCoach(headline: "Your month in sleep", body: body, chips: chips)
         default:
             return SleepCoach(
                 headline: "Your long-term sleep trend",
-                body: "Across the year your tracked average is \(avgText) over \(valid.count) nights. The long-term trend is still forming — as more months fill in, I'll be able to compare seasonal changes and consistency.",
+                body: "Across the year your tracked average is \(avgText) over \(valid.count) nights. The long-term trend is still forming  -  as more months fill in, I'll be able to compare seasonal changes and consistency.",
                 chips: chips
             )
         }

@@ -80,6 +80,50 @@ final class CoachSchemaTests: XCTestCase {
         XCTAssertEqual(decoded.chart?.chartType, .bar)
         XCTAssertEqual(decoded.chart?.data.first?.y, 8000)
     }
+
+    func testMediaRoundTrips() throws {
+        let media = CoachMedia(kind: .image, urls: ["https://cdn.muapi.ai/a.png"],
+                               prompt: "a cat", model: "flux-schnell", sandbox: true)
+        let response = CoachResponse(responseType: .insight, title: "T", summary: "S", media: [media])
+        let json = try XCTUnwrap(response.encodedJSON())
+        let decoded = try XCTUnwrap(CoachResponse.decode(fromJSON: json))
+        XCTAssertEqual(decoded.media.count, 1)
+        XCTAssertEqual(decoded.media.first?.kind, .image)
+        XCTAssertEqual(decoded.media.first?.urls.first, "https://cdn.muapi.ai/a.png")
+        XCTAssertEqual(decoded.media.first?.model, "flux-schnell")
+        XCTAssertTrue(decoded.media.first?.sandbox ?? false)
+    }
+
+    func testOldResponseWithoutMediaStillDecodes() throws {
+        // Older persisted payloads have no `media` key → must decode to empty.
+        let decoded = try XCTUnwrap(CoachResponse.decode(fromJSON: validResponseJSON()))
+        XCTAssertTrue(decoded.media.isEmpty)
+    }
+
+    func testDiagramRoundTrips() throws {
+        let diagram = CoachDiagram(kind: .mermaid, title: "Flow", source: "graph TD; A-->B")
+        let response = CoachResponse(responseType: .insight, title: "T", summary: "S", diagram: diagram)
+        let json = try XCTUnwrap(response.encodedJSON())
+        let decoded = try XCTUnwrap(CoachResponse.decode(fromJSON: json))
+        XCTAssertEqual(decoded.diagram?.kind, .mermaid)
+        XCTAssertEqual(decoded.diagram?.title, "Flow")
+        XCTAssertEqual(decoded.diagram?.source, "graph TD; A-->B")
+    }
+
+    func testOldResponseWithoutDiagramStillDecodes() throws {
+        // Payloads with no `diagram` key → diagram is nil, not a decode failure.
+        let decoded = try XCTUnwrap(CoachResponse.decode(fromJSON: validResponseJSON()))
+        XCTAssertNil(decoded.diagram)
+    }
+
+    func testDiagramSchemaIsRequiredAndSerializable() throws {
+        let schema = CoachResponseSchema.jsonSchema
+        XCTAssertTrue(JSONSerialization.isValidJSONObject(schema))
+        let required = schema["required"] as? [String] ?? []
+        XCTAssertTrue(required.contains("diagram"))
+        let props = schema["properties"] as? [String: Any] ?? [:]
+        XCTAssertNotNil(props["diagram"])
+    }
 }
 
 // MARK: - Analysis engine
@@ -184,7 +228,11 @@ final class CoachToolTests: XCTestCase {
     }
 
     func testRegistryHasReadOnlyToolsOnly() {
-        let registry = ToolRegistry(flags: CoachFeatureFlags(settings: .default, hasAPIKey: true))
+        // Writes now default ON; to verify read-only gating still works, explicitly
+        // disable writes and assert write tools are absent.
+        var settings = CoachSettings.default
+        settings.enableWriteTools = false
+        let registry = ToolRegistry(flags: CoachFeatureFlags(settings: settings, hasAPIKey: true))
         let names = Set(registry.toolSpecs.compactMap { $0["name"] as? String })
         XCTAssertTrue(names.contains("get_daily_summary"))
         XCTAssertTrue(names.contains("prepare_chart"))
@@ -205,6 +253,22 @@ final class CoachToolTests: XCTestCase {
 final class CoachOrchestratorTests: XCTestCase {
     private func packet(_ c: ModelContext) -> CoachContextPacket { CoachContextBuilder.build(context: c) }
 
+    /// Coach is opt-out by default; tests exercising the LLM path need it on.
+    private var enabledSettings: CoachSettings {
+        var s = CoachSettings.default
+        s.coachMasterEnabled = true
+        return s
+    }
+
+    /// Genuinely-off coach. The master switch defaults to on, and the paired-proxy
+    /// path can otherwise make `coachEnabled` true even without an on-device key, so
+    /// "disabled" must flip the master switch explicitly to be deterministic.
+    private var disabledSettings: CoachSettings {
+        var s = CoachSettings.default
+        s.coachMasterEnabled = false
+        return s
+    }
+
     private func orchestrator(client: ResponsesClient, flags: CoachFeatureFlags, context: ModelContext) -> CoachOrchestrator {
         CoachOrchestrator(client: client, registry: ToolRegistry(flags: flags), flags: flags,
                           toolContext: ToolExecutionContext(modelContext: context, flags: flags))
@@ -213,7 +277,7 @@ final class CoachOrchestratorTests: XCTestCase {
     func testDisabledCoachUsesScriptedFallback() async throws {
         let c = try TestSupport.makeContext()
         TestSupport.insertActivity(date: Date(), steps: 7000, into: c)
-        let flags = CoachFeatureFlags(settings: .default, hasAPIKey: false)  // disabled
+        let flags = CoachFeatureFlags(settings: disabledSettings, hasAPIKey: false)  // disabled
         let o = orchestrator(client: StubResponsesClient([]), flags: flags, context: c)
         let result = await o.runTurn(userText: "How am I doing?", packet: packet(c), recentMessages: [])
         XCTAssertEqual(result.assistant.responseType, .insight)
@@ -222,7 +286,7 @@ final class CoachOrchestratorTests: XCTestCase {
 
     func testMessageOnlyResponseIsParsed() async throws {
         let c = try TestSupport.makeContext()
-        let flags = CoachFeatureFlags(settings: .default, hasAPIKey: true)
+        let flags = CoachFeatureFlags(settings: enabledSettings, hasAPIKey: true)
         let stub = StubResponsesClient([OpenAIResponse(id: "r1", outputItems: [.message(text: validResponseJSON(title: "Hi"))])])
         let o = orchestrator(client: stub, flags: flags, context: c)
         let result = await o.runTurn(userText: "hi", packet: packet(c), recentMessages: [])
@@ -234,7 +298,7 @@ final class CoachOrchestratorTests: XCTestCase {
         let c = try TestSupport.makeContext()
         TestSupport.insertActivity(date: Date(), steps: 8200, into: c)
         let today = CoachDataAccess.localDateString(Date())
-        let flags = CoachFeatureFlags(settings: .default, hasAPIKey: true)
+        let flags = CoachFeatureFlags(settings: enabledSettings, hasAPIKey: true)
         let stub = StubResponsesClient([
             OpenAIResponse(id: "r1", outputItems: [.functionCall(.init(name: "get_daily_summary", callID: "c1", arguments: #"{"date":"\#(today)"}"#))]),
             OpenAIResponse(id: "r2", outputItems: [.message(text: validResponseJSON())]),
@@ -250,12 +314,25 @@ final class CoachOrchestratorTests: XCTestCase {
 
     func testUnparseableFinalFallsBack() async throws {
         let c = try TestSupport.makeContext()
-        let flags = CoachFeatureFlags(settings: .default, hasAPIKey: true)
-        // Every response is junk → repair loop exhausts → fallback.
-        let junk = OpenAIResponse(id: "x", outputItems: [.message(text: "not json")])
-        let o = orchestrator(client: StubResponsesClient([junk, junk, junk, junk]), flags: flags, context: c)
+        let flags = CoachFeatureFlags(settings: enabledSettings, hasAPIKey: true)
+        // Every response is empty (no usable content at all) → repair loop exhausts
+        // → graceful fallback.
+        let empty = OpenAIResponse(id: "x", outputItems: [.message(text: "")])
+        let o = orchestrator(client: StubResponsesClient([empty, empty, empty, empty]), flags: flags, context: c)
         let result = await o.runTurn(userText: "hi", packet: packet(c), recentMessages: [])
         XCTAssertEqual(result.assistant.responseType, .errorRecovery)
+    }
+
+    func testProseFinalIsSalvagedNotFallback() async throws {
+        let c = try TestSupport.makeContext()
+        let flags = CoachFeatureFlags(settings: enabledSettings, hasAPIKey: true)
+        // A model that ignores the JSON contract but gives a real prose answer should
+        // have that answer salvaged (wrapped), not replaced by a canned fallback.
+        let prose = OpenAIResponse(id: "p", outputItems: [.message(text: "Your resting heart rate looks healthy and stable.")])
+        let o = orchestrator(client: StubResponsesClient([prose, prose, prose, prose]), flags: flags, context: c)
+        let result = await o.runTurn(userText: "how's my heart?", packet: packet(c), recentMessages: [])
+        XCTAssertNotEqual(result.assistant.responseType, .errorRecovery)
+        XCTAssertTrue(result.assistant.summary.contains("resting heart rate"))
     }
 }
 
@@ -299,4 +376,78 @@ final class OpenAIResponsesClientTests: XCTestCase {
 
 private extension CoachChart {
     static func decode(_ data: Data) -> CoachChart? { try? JSONDecoder().decode(CoachChart.self, from: data) }
+}
+
+// MARK: - Provider matrix (roadmap B1)
+
+final class CoachProviderMatrixTests: XCTestCase {
+    func testShippingMatrix() {
+        XCTAssertTrue(CoachProviderMode.userOpenAIKey.isShippable)
+        XCTAssertTrue(CoachProviderMode.backendProxy.isShippable)
+        XCTAssertFalse(CoachProviderMode.offlineStub.isShippable, "offlineStub is dev/test only")
+        XCTAssertFalse(CoachProviderMode.bedrock.isShippable, "bedrock is experimental, not in the launch matrix")
+    }
+
+    func testSelectableModesNeverOfferNonShippingInRelease() {
+        // selectableModes is the only list a provider picker may use. In a release
+        // build it must contain exactly the shipping matrix; DEBUG may add more.
+        let selectable = CoachProviderMode.selectableModes
+        XCTAssertTrue(selectable.contains(.userOpenAIKey))
+        XCTAssertTrue(selectable.contains(.backendProxy))
+        #if DEBUG
+        XCTAssertEqual(Set(selectable), Set(CoachProviderMode.allCases))
+        #else
+        XCTAssertFalse(selectable.contains(.offlineStub))
+        XCTAssertFalse(selectable.contains(.bedrock))
+        XCTAssertTrue(selectable.allSatisfy { $0.isShippable })
+        #endif
+    }
+
+    // MARK: - coachEnabled gating across provider modes (roadmap C3)
+
+    func testBackendProxyEnablesCoachWithoutOnDeviceKey() {
+        var s = CoachSettings()
+        s.coachMasterEnabled = true
+        s.providerMode = .backendProxy
+        s.backendProxyURL = "https://pulseloop.example.com"
+        // No on-device key — the server holds it. The coach must still be enabled.
+        let flags = CoachFeatureFlags(settings: s, hasAPIKey: false)
+        XCTAssertTrue(flags.coachEnabled)
+        XCTAssertTrue(flags.statusLine.contains("Ready"))
+    }
+
+    func testBackendProxyDisabledWhenURLMissing() {
+        var s = CoachSettings()
+        s.coachMasterEnabled = true
+        s.providerMode = .backendProxy
+        s.backendProxyURL = "   "
+        let flags = CoachFeatureFlags(settings: s, hasAPIKey: false)
+        // When a paired PulseLoop proxy is available (zero-config path), the coach
+        // is enabled even without an explicit URL. This test only asserts the
+        // URL-gating when no paired proxy exists.
+        if !CoachFeatureFlags.pairedProxyAvailable {
+            XCTAssertFalse(flags.coachEnabled)
+        }
+    }
+
+    func testByoKeyModeStillRequiresKey() {
+        var s = CoachSettings()
+        s.coachMasterEnabled = true
+        s.providerMode = .userOpenAIKey
+        // Without a key AND without a paired proxy, BYO-key mode stays disabled.
+        if !CoachFeatureFlags.pairedProxyAvailable {
+            XCTAssertFalse(CoachFeatureFlags(settings: s, hasAPIKey: false).coachEnabled)
+        }
+        XCTAssertTrue(CoachFeatureFlags(settings: s, hasAPIKey: true).coachEnabled)
+    }
+
+    func testMasterSwitchOffDisablesEveryMode() {
+        for mode in CoachProviderMode.allCases {
+            var s = CoachSettings()
+            s.coachMasterEnabled = false
+            s.providerMode = mode
+            s.backendProxyURL = "https://pulseloop.example.com"
+            XCTAssertFalse(CoachFeatureFlags(settings: s, hasAPIKey: true).coachEnabled)
+        }
+    }
 }

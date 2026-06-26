@@ -58,7 +58,7 @@ final class LiveWorkoutManager {
         )
         lastPushedDistance = 0
         lastPushAt = Date()
-        try? context.save()
+        context.saveOrLog("liveWorkout")
         return session
     }
 
@@ -143,7 +143,7 @@ final class LiveWorkoutManager {
     /// On launch / foreground: re-attach to an in-progress recording (restart GPS, catch up polling,
     /// refresh the Live Activity) and apply any pending Lock Screen command.
     ///
-    /// Only resumes a session that is *freshly active* — i.e. it had a sensor poll or GPS fix in the
+    /// Only resumes a session that is *freshly active*  -  i.e. it had a sensor poll or GPS fix in the
     /// last few minutes. This recovers a genuinely interrupted workout (app killed and relaunched
     /// quickly) without silently re-polling the ring for sessions that were abandoned and never
     /// finished (which would otherwise record HR every minute forever).
@@ -159,7 +159,7 @@ final class LiveWorkoutManager {
 
     /// Ensure the workout the live screen is showing is actively recording (polling + GPS + Live
     /// Activity). Called from `RecordLiveView.onAppear`, so the session the user is looking at always
-    /// records — even after a relaunch where the freshness heuristic would otherwise skip it.
+    /// records  -  even after a relaunch where the freshness heuristic would otherwise skip it.
     func ensureActive(_ session: ActivitySession) {
         guard session.status == .recording else { return }
         if session.useGps && !gps.isTracking { gps.start(sessionId: session.id, activityType: session.type) }

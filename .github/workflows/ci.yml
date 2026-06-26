@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: iOS Build & Test
+    # The voice stack (Kokoro / WhisperKit) requires Swift 6.2+ / Xcode 26.x, so we
+    # must run on the macos-26 image — macos-15 only ships Xcode 16.x and cannot
+    # build this project.
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          # Pick the highest installed Xcode 26.x on the runner.
+          XCODE_APP=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE_APP" ]; then
+            echo "No Xcode 26.x found on this runner image." >&2
+            ls -d /Applications/Xcode*.app || true
+            exit 1
+          fi
+          echo "Using $XCODE_APP"
+          sudo xcode-select -switch "$XCODE_APP/Contents/Developer"
+
+      - name: Show versions
+        run: |
+          xcodebuild -version
+          swift --version
+          xcrun simctl list devices available | grep -i iphone || true
+
+      - name: Resolve an iOS 26 iPhone simulator
+        id: sim
+        run: |
+          # Find any available iOS-26 iPhone simulator by name so we don't depend on
+          # a specific device existing on the image.
+          DEVICE=$(xcrun simctl list devices available | awk '/-- iOS 26/{flag=1; next} /^-- /{flag=0} flag && /iPhone/{gsub(/^[ ]+/,""); sub(/ \(.*/,""); print; exit}')
+          if [ -z "$DEVICE" ]; then
+            echo "No iOS 26 iPhone simulator available; falling back to any iPhone." >&2
+            DEVICE=$(xcrun simctl list devices available | awk '/iPhone/{gsub(/^[ ]+/,""); sub(/ \(.*/,""); print; exit}')
+          fi
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $DEVICE"
+
+      - name: Build & test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project PulseLoop.xcodeproj \
+            -scheme PulseLoop \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -resultBundlePath TestResults.xcresult \
+            clean test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults.xcresult
+          if-no-files-found: ignore
+
+  web:
+    name: Web Build & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        # Build with placeholder env so Next.js / Clerk / Drizzle don't fail on missing
+        # secrets in CI. Real values are configured in the deployment environment.
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci-placeholder
+          CLERK_SECRET_KEY: sk_test_ci-placeholder
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+        run: npm run build

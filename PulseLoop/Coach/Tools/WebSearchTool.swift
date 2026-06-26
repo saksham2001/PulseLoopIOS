@@ -1,6 +1,6 @@
 import Foundation
 
-/// The hosted web-search tool. Unlike function tools it has no local handler —
+/// The hosted web-search tool. Unlike function tools it has no local handler  - 
 /// OpenAI runs it server-side and returns `web_search_call` output items the
 /// orchestrator ignores. Only its spec is contributed to the request.
 enum WebSearchTool {

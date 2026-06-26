@@ -1,0 +1,889 @@
+[
+  {
+    "aliases" : [
+      "d3",
+      "vitamin d",
+      "cholecalciferol"
+    ],
+    "benefit" : "Supports bone health, immune function, and mood regulation",
+    "bestTimeReason" : "Take with a fat-containing meal for 50% better absorption",
+    "category" : "vitamin",
+    "cons" : [
+      "Toxicity at very high doses (>10,000 IU/day long-term) causing hypercalcemia",
+      "Nausea, vomiting, and kidney stones if over-supplemented",
+      "Can cause arterial calcification without K2",
+      "May interact with thiazide diuretics",
+      "Blood tests needed to monitor levels"
+    ],
+    "defaultDose" : "2,000 IU",
+    "emoji" : "☀️",
+    "interactionNotes" : "Space 2h from magnesium for optimal uptake",
+    "mechanism" : "Fat-soluble secosteroid that regulates calcium absorption and immune cell activity",
+    "name" : "Vitamin D3",
+    "pros" : [
+      "Reduces risk of osteoporosis and fractures",
+      "Strengthens immune defense against infections",
+      "Improves mood and may reduce seasonal depression",
+      "Supports healthy testosterone levels",
+      "May reduce risk of certain cancers"
+    ],
+    "stackNotes" : "Synergizes with K2 for proper calcium routing to bones instead of arteries",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "k2",
+      "mk-7",
+      "menaquinone"
+    ],
+    "benefit" : "Directs calcium to bones and teeth, away from arteries",
+    "bestTimeReason" : "Take with D3 and a fat source for synergistic absorption",
+    "category" : "vitamin",
+    "cons" : [
+      "Dangerous interaction with warfarin/blood thinners",
+      "May cause blood clotting in those with clotting disorders",
+      "Rare: nausea or upset stomach",
+      "Limited research on very high doses",
+      "Must be taken with fat for absorption"
+    ],
+    "defaultDose" : "100 mcg",
+    "emoji" : "bone",
+    "interactionNotes" : "May reduce effectiveness of blood thinners (warfarin)",
+    "mechanism" : "Activates osteocalcin (bone) and MGP (arterial) proteins",
+    "name" : "Vitamin K2",
+    "pros" : [
+      "Prevents calcium buildup in arteries",
+      "Strengthens bone density",
+      "Reduces fracture risk significantly",
+      "Supports dental health",
+      "Synergizes with D3 for optimal calcium metabolism"
+    ],
+    "stackNotes" : "Essential companion to D3  -  prevents arterial calcification",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "fish oil",
+      "epa",
+      "dha",
+      "omega 3"
+    ],
+    "benefit" : "Reduces inflammation, supports brain and heart health",
+    "bestTimeReason" : "Take with meals to reduce fishy aftertaste and improve absorption",
+    "category" : "supplement",
+    "cons" : [
+      "Fishy burps and aftertaste",
+      "May increase bleeding risk at high doses (>3g/day)",
+      "Possible interaction with blood thinners",
+      "Can cause GI upset, diarrhea, or nausea",
+      "Risk of oxidation if poorly stored (rancid oil is harmful)",
+      "May raise LDL cholesterol slightly in some people"
+    ],
+    "defaultDose" : "1,000 mg",
+    "emoji" : "drop.fill",
+    "interactionNotes" : "May increase bleeding risk with blood thinners at high doses",
+    "mechanism" : "EPA/DHA integrate into cell membranes, modulating inflammatory pathways",
+    "name" : "Omega-3",
+    "pros" : [
+      "Significantly reduces systemic inflammation",
+      "Lowers triglycerides by 15-30%",
+      "Supports brain health and may reduce depression",
+      "Protects cardiovascular system",
+      "Improves joint mobility and reduces stiffness",
+      "Supports healthy skin and reduces dryness"
+    ],
+    "stackNotes" : "Complements D3 absorption (provides fat vehicle)",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "mag",
+      "magnesium glycinate",
+      "magnesium threonate"
+    ],
+    "benefit" : "Supports sleep quality, muscle relaxation, and 300+ enzymatic reactions",
+    "bestTimeReason" : "PM dosing leverages calming effect for better sleep onset",
+    "category" : "supplement",
+    "cons" : [
+      "Loose stools or diarrhea (especially oxide form)",
+      "Can cause drowsiness — don't take before driving",
+      "May lower blood pressure too much if already low",
+      "Competes with calcium and zinc for absorption",
+      "High doses can cause nausea",
+      "Kidney patients should consult doctor first"
+    ],
+    "defaultDose" : "400 mg",
+    "emoji" : "moon.fill",
+    "interactionNotes" : "Space 2h from calcium and D3  -  they compete for absorption",
+    "mechanism" : "Cofactor for ATP production, GABA receptor agonist promoting calm",
+    "name" : "Magnesium",
+    "pros" : [
+      "Improves sleep quality and reduces insomnia",
+      "Relieves muscle cramps and tension",
+      "Reduces anxiety and promotes calm",
+      "Supports 300+ enzymatic reactions in the body",
+      "May reduce migraine frequency",
+      "Helps regulate blood pressure"
+    ],
+    "stackNotes" : "Pairs well with zinc and B6 for sleep (ZMA stack)",
+    "timing" : "PM"
+  },
+  {
+    "aliases" : [
+      "creatine monohydrate"
+    ],
+    "benefit" : "Increases strength, power output, and cognitive performance",
+    "bestTimeReason" : "Timing doesn't matter much  -  consistency is key. AM with food works well",
+    "category" : "supplement",
+    "cons" : [
+      "Water retention and initial weight gain (2-5 lbs)",
+      "May cause bloating in some people",
+      "Rare: stomach cramping if taken without water",
+      "Theoretical kidney concern in those with pre-existing conditions",
+      "Can cause muscle cramping if dehydrated",
+      "Non-responders (~20%) see minimal benefit"
+    ],
+    "defaultDose" : "5 g",
+    "emoji" : "figure.strengthtraining.traditional",
+    "interactionNotes" : "Stay well-hydrated. No significant negative interactions",
+    "mechanism" : "Replenishes phosphocreatine stores for rapid ATP regeneration",
+    "name" : "Creatine",
+    "pros" : [
+      "Increases strength and power output by 5-15%",
+      "Enhances cognitive performance and memory",
+      "One of the most researched supplements with strong safety profile",
+      "Supports brain health and neuroprotection",
+      "Increases lean muscle mass",
+      "May benefit depression and mood"
+    ],
+    "stackNotes" : "Safe to combine with most supplements. Pairs with protein for muscle gains",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "vit c",
+      "ascorbic acid"
+    ],
+    "benefit" : "Antioxidant, immune support, collagen synthesis, iron absorption",
+    "bestTimeReason" : "AM with food to reduce GI irritation. Split doses if >1000mg",
+    "category" : "vitamin",
+    "cons" : [
+      "GI upset, heartburn, and diarrhea at high doses (>2g)",
+      "Kidney stones risk with chronic high doses",
+      "May cause false readings on blood glucose tests",
+      "Can reduce copper absorption long-term",
+      "Iron overload risk if taken with iron in those with hemochromatosis",
+      "Rebound scurvy if suddenly stopping very high doses"
+    ],
+    "defaultDose" : "500 mg",
+    "emoji" : "drop.fill",
+    "interactionNotes" : "High doses may reduce copper absorption",
+    "mechanism" : "Electron donor that neutralizes free radicals and enables hydroxylation reactions",
+    "name" : "Vitamin C",
+    "pros" : [
+      "Powerful antioxidant protecting against oxidative stress",
+      "Boosts immune function and reduces cold duration",
+      "Essential for collagen production (skin, joints)",
+      "Dramatically improves iron absorption",
+      "May reduce blood pressure",
+      "Supports wound healing"
+    ],
+    "stackNotes" : "Enhances iron absorption  -  take together if supplementing iron",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "zinc picolinate",
+      "zinc glycinate"
+    ],
+    "benefit" : "Immune function, testosterone support, wound healing",
+    "bestTimeReason" : "PM with magnesium for sleep support (ZMA effect)",
+    "category" : "supplement",
+    "cons" : [
+      "Nausea and vomiting if taken on empty stomach",
+      "Copper deficiency with long-term use (>30mg/day)",
+      "Metallic taste in mouth",
+      "Can cause headaches",
+      "Competes with iron absorption",
+      "High doses (>40mg) may cause abdominal pain and diarrhea"
+    ],
+    "defaultDose" : "15 mg",
+    "emoji" : "shield.fill",
+    "interactionNotes" : "Competes with copper and iron  -  space from iron supplements by 2h",
+    "mechanism" : "Cofactor for 100+ enzymes, supports thymus function and T-cell maturation",
+    "name" : "Zinc",
+    "pros" : [
+      "Strengthens immune system and shortens colds",
+      "Supports healthy testosterone levels",
+      "Accelerates wound healing",
+      "Improves skin health and reduces acne",
+      "Essential for taste and smell",
+      "Supports prostate health"
+    ],
+    "stackNotes" : "Pairs with magnesium and B6 for sleep. Take with copper long-term",
+    "timing" : "PM"
+  },
+  {
+    "aliases" : [
+      "ksm-66",
+      "withania"
+    ],
+    "benefit" : "Reduces cortisol, anxiety, and supports thyroid function",
+    "bestTimeReason" : "PM dosing maximizes cortisol reduction for better sleep",
+    "category" : "supplement",
+    "cons" : [
+      "May cause drowsiness or sedation",
+      "Can overstimulate thyroid — dangerous for hyperthyroid patients",
+      "GI upset including diarrhea in some users",
+      "May interact with immunosuppressants",
+      "Not safe during pregnancy",
+      "Rare cases of liver injury reported at high doses",
+      "Can cause vivid dreams or emotional blunting"
+    ],
+    "defaultDose" : "600 mg",
+    "emoji" : "leaf.fill",
+    "interactionNotes" : "May potentiate thyroid medications  -  consult doctor if on levothyroxine",
+    "mechanism" : "Adaptogen that modulates HPA axis and GABAergic signaling",
+    "name" : "Ashwagandha",
+    "pros" : [
+      "Clinically shown to reduce cortisol by 23-30%",
+      "Significantly reduces anxiety and stress",
+      "Improves sleep quality",
+      "Supports testosterone and fertility in men",
+      "Enhances endurance and strength",
+      "Improves thyroid function (T3/T4)"
+    ],
+    "stackNotes" : "Pairs with magnesium for enhanced relaxation",
+    "timing" : "PM"
+  },
+  {
+    "aliases" : [
+      "theanine"
+    ],
+    "benefit" : "Promotes calm focus without drowsiness, reduces caffeine jitters",
+    "bestTimeReason" : "AM with caffeine for smooth, focused energy without anxiety",
+    "category" : "supplement",
+    "cons" : [
+      "May cause drowsiness at high doses (>400mg)",
+      "Can slightly lower blood pressure",
+      "Possible headache in sensitive individuals",
+      "May reduce effectiveness of stimulant medications",
+      "Very mild effect — some people notice nothing",
+      "Limited research on long-term daily high-dose use"
+    ],
+    "defaultDose" : "200 mg",
+    "emoji" : "cup.and.saucer",
+    "interactionNotes" : "Very safe. No known significant interactions",
+    "mechanism" : "Crosses BBB, increases alpha brain waves and GABA/serotonin/dopamine",
+    "name" : "L-Theanine",
+    "pros" : [
+      "Promotes relaxation without sedation",
+      "Reduces caffeine jitters and anxiety",
+      "Enhances focus and attention (alpha brain waves)",
+      "Very safe with no known toxicity",
+      "Improves sleep quality when taken at night",
+      "May lower blood pressure gently"
+    ],
+    "stackNotes" : "Classic stack with caffeine (2:1 ratio theanine:caffeine)",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "n-acetyl cysteine",
+      "n-acetylcysteine"
+    ],
+    "benefit" : "Glutathione precursor, liver support, respiratory health, antioxidant",
+    "bestTimeReason" : "AM on empty stomach for best absorption, 30min before food",
+    "category" : "supplement",
+    "cons" : [
+      "Nausea, vomiting, and diarrhea (common at high doses)",
+      "Unpleasant sulfur smell/taste",
+      "May chelate zinc and other minerals — space apart",
+      "Can cause headaches",
+      "Rare: allergic reactions (rash, breathing issues)",
+      "May interfere with certain chemotherapy drugs",
+      "Can cause low blood pressure in some people"
+    ],
+    "defaultDose" : "600 mg",
+    "emoji" : "lungs.fill",
+    "interactionNotes" : "Take away from zinc  -  may chelate minerals. Space 1h from food",
+    "mechanism" : "Provides cysteine for glutathione synthesis  -  the body's master antioxidant",
+    "name" : "NAC",
+    "pros" : [
+      "Replenishes glutathione — the body's master antioxidant",
+      "Protects liver from toxin damage (used in hospitals for acetaminophen OD)",
+      "Thins mucus and improves respiratory health",
+      "May reduce OCD and addictive behaviors",
+      "Supports brain health and reduces oxidative stress",
+      "Potential anti-aging benefits"
+    ],
+    "stackNotes" : "Pairs with Vitamin C for enhanced antioxidant network",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "bpc157",
+      "bpc 157",
+      "body protection compound"
+    ],
+    "benefit" : "Accelerates tissue repair, gut healing, and tendon/ligament recovery",
+    "bestTimeReason" : "Inject subcutaneously AM near injury site or abdomen for systemic effect",
+    "category" : "peptide",
+    "cons" : [
+      "Not FDA-approved — research mostly animal studies",
+      "Injection site pain, redness, or irritation",
+      "Possible nausea or dizziness",
+      "Unknown long-term effects in humans",
+      "Theoretical concern: could promote tumor growth via angiogenesis",
+      "Quality/purity varies widely between sources",
+      "Requires proper reconstitution knowledge"
+    ],
+    "defaultDose" : "250 mcg",
+    "emoji" : "syringe.fill",
+    "interactionNotes" : "Avoid NSAIDs which may counteract healing pathways",
+    "mechanism" : "Upregulates growth factor receptors (VEGF, FGF) and nitric oxide pathways",
+    "name" : "BPC-157",
+    "pros" : [
+      "Dramatically accelerates tendon and ligament healing",
+      "Heals gut lining (IBD, leaky gut, ulcers)",
+      "Reduces inflammation systemically",
+      "Protects organs from toxin damage",
+      "Promotes angiogenesis (new blood vessel formation)",
+      "Neuroprotective properties"
+    ],
+    "stackNotes" : "Often stacked with TB-500 for enhanced tissue repair",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "tb500",
+      "thymosin beta-4"
+    ],
+    "benefit" : "Promotes tissue regeneration, reduces inflammation, hair regrowth",
+    "bestTimeReason" : "Inject 2-3x per week subcutaneously. Morning for consistency",
+    "category" : "peptide",
+    "cons" : [
+      "Not FDA-approved — limited human clinical data",
+      "Theoretical cancer risk (promotes cell proliferation)",
+      "Injection site reactions (redness, swelling)",
+      "Headaches reported by some users",
+      "Fatigue or lethargy initially",
+      "Expensive and requires sourcing from research companies",
+      "May cause temporary head rush after injection"
+    ],
+    "defaultDose" : "5 mg/week",
+    "emoji" : "syringe.fill",
+    "interactionNotes" : "Theoretical concern with active cancers  -  avoid if history of malignancy",
+    "mechanism" : "Upregulates actin, promoting cell migration and blood vessel formation",
+    "name" : "TB-500",
+    "pros" : [
+      "Powerful systemic tissue repair",
+      "Reduces inflammation throughout the body",
+      "Promotes hair regrowth",
+      "Improves flexibility and reduces scar tissue",
+      "Accelerates muscle and tendon recovery",
+      "Promotes new blood vessel growth"
+    ],
+    "stackNotes" : "Synergistic with BPC-157 for comprehensive tissue repair",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "ipam"
+    ],
+    "benefit" : "Stimulates growth hormone release for recovery, fat loss, and sleep quality",
+    "bestTimeReason" : "Before bed on empty stomach  -  aligns with natural GH pulse during deep sleep",
+    "category" : "peptide",
+    "cons" : [
+      "Increased hunger (ghrelin pathway)",
+      "Water retention and bloating",
+      "Tingling or numbness in extremities",
+      "Headaches, especially initially",
+      "Potential joint pain from GH increase",
+      "Must fast 2h before for effectiveness",
+      "Not FDA-approved for anti-aging use",
+      "Can worsen insulin resistance if overdosed"
+    ],
+    "defaultDose" : "200 mcg",
+    "emoji" : "syringe.fill",
+    "interactionNotes" : "Fast 2h before injection. Avoid with food/carbs that spike insulin",
+    "mechanism" : "Selective ghrelin mimetic that triggers pulsatile GH release from pituitary",
+    "name" : "Ipamorelin",
+    "pros" : [
+      "Stimulates natural growth hormone release",
+      "Improves sleep quality and deep sleep",
+      "Promotes fat loss while preserving muscle",
+      "Enhances recovery from training",
+      "Anti-aging benefits (skin, collagen, bone density)",
+      "Fewer side effects than synthetic HGH"
+    ],
+    "stackNotes" : "Often combined with CJC-1295 (no DAC) for amplified GH release",
+    "timing" : "PM"
+  },
+  {
+    "aliases" : [
+      "cjc",
+      "cjc1295",
+      "mod grf"
+    ],
+    "benefit" : "Extends growth hormone release duration for deeper recovery",
+    "bestTimeReason" : "Before bed with Ipamorelin for synergistic GH pulse",
+    "category" : "peptide",
+    "cons" : [
+      "Water retention and facial puffiness",
+      "Increased cortisol possible",
+      "Flushing and warmth after injection",
+      "Headaches and dizziness",
+      "Potential for joint pain/carpal tunnel at high doses",
+      "Must be fasted for proper effect",
+      "Not FDA-approved",
+      "DAC version can cause constant elevated GH (less pulsatile, more side effects)"
+    ],
+    "defaultDose" : "100 mcg",
+    "emoji" : "syringe.fill",
+    "interactionNotes" : "Same fasting rules as Ipamorelin. Avoid insulin-spiking foods nearby",
+    "mechanism" : "GHRH analog that amplifies natural GH pulses without desensitization",
+    "name" : "CJC-1295",
+    "pros" : [
+      "Amplifies and extends natural GH pulses",
+      "Synergizes powerfully with Ipamorelin",
+      "Promotes deep recovery and tissue repair",
+      "Improves body composition",
+      "Enhances sleep architecture",
+      "Anti-aging effects on skin and joints"
+    ],
+    "stackNotes" : "Standard combo with Ipamorelin (1:2 ratio CJC:Ipam)",
+    "timing" : "PM"
+  },
+  {
+    "aliases" : [
+      "ferrous",
+      "iron bisglycinate"
+    ],
+    "benefit" : "Oxygen transport, energy production, cognitive function",
+    "bestTimeReason" : "AM on empty stomach with vitamin C for 3x better absorption",
+    "category" : "supplement",
+    "cons" : [
+      "Constipation (very common)",
+      "Nausea, vomiting, and stomach pain",
+      "Black/dark stools",
+      "Iron overload (hemochromatosis) is dangerous",
+      "Oxidative damage if taken when not deficient",
+      "Competes with zinc and calcium absorption",
+      "Can stain teeth (liquid forms)",
+      "Accidental overdose is dangerous in children"
+    ],
+    "defaultDose" : "18 mg",
+    "emoji" : "cross.vial.fill",
+    "interactionNotes" : "Competes with zinc, calcium, and magnesium  -  space 2h from each",
+    "mechanism" : "Core component of hemoglobin and myoglobin for O2 delivery to tissues",
+    "name" : "Iron",
+    "pros" : [
+      "Eliminates fatigue from iron-deficiency anemia",
+      "Improves oxygen delivery to muscles and brain",
+      "Enhances cognitive function and concentration",
+      "Supports immune system",
+      "Essential for endurance athletes",
+      "Improves hair growth when deficient"
+    ],
+    "stackNotes" : "Always pair with Vitamin C. Consider with B12 if anemic",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "methylcobalamin",
+      "vitamin b12",
+      "cobalamin"
+    ],
+    "benefit" : "Energy production, nerve function, red blood cell formation",
+    "bestTimeReason" : "AM to avoid potential sleep interference from energy boost",
+    "category" : "vitamin",
+    "cons" : [
+      "Acne breakouts reported by some users at high doses",
+      "May cause anxiety or restlessness",
+      "Can mask folate deficiency",
+      "Rare: allergic reaction to injections",
+      "Insomnia if taken too late in the day",
+      "Potential interaction with certain antibiotics and anti-seizure meds"
+    ],
+    "defaultDose" : "1,000 mcg",
+    "emoji" : "bolt.fill",
+    "interactionNotes" : "Metformin depletes B12  -  supplement if taking metformin",
+    "mechanism" : "Coenzyme for methylation reactions and myelin synthesis",
+    "name" : "B12",
+    "pros" : [
+      "Eliminates fatigue from B12 deficiency",
+      "Supports nerve health and prevents neuropathy",
+      "Essential for red blood cell formation",
+      "Improves mood and reduces depression symptoms",
+      "Supports methylation (gene expression, detox)",
+      "Safe even at high doses (water-soluble)"
+    ],
+    "stackNotes" : "Part of the B-complex family. Pairs with folate for methylation",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "probiotic",
+      "lactobacillus",
+      "bifidobacterium"
+    ],
+    "benefit" : "Gut microbiome balance, immune modulation, nutrient absorption",
+    "bestTimeReason" : "AM on empty stomach  -  gastric acid is lowest, improving survival",
+    "category" : "supplement",
+    "cons" : [
+      "Initial gas and bloating (usually temporary)",
+      "Can trigger histamine reactions in sensitive people",
+      "Risk of infection in immunocompromised individuals",
+      "May worsen SIBO symptoms",
+      "Expensive for quality strains",
+      "Die-off reactions (headache, fatigue) initially",
+      "Strain-specific — wrong strain may not help"
+    ],
+    "defaultDose" : "50B CFU",
+    "emoji" : "microbe",
+    "interactionNotes" : "Space from antibiotics by 2-4h. Heat-sensitive  -  store properly",
+    "mechanism" : "Live bacteria that colonize the gut, outcompeting pathogens and producing SCFAs",
+    "name" : "Probiotics",
+    "pros" : [
+      "Improves digestion and reduces bloating",
+      "Strengthens immune system (70% in gut)",
+      "May reduce anxiety and depression (gut-brain axis)",
+      "Helps recover gut flora after antibiotics",
+      "Reduces IBS symptoms",
+      "May improve skin conditions (eczema, acne)"
+    ],
+    "stackNotes" : "Pair with prebiotic fiber for better colonization",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "collagen peptides",
+      "hydrolyzed collagen"
+    ],
+    "benefit" : "Skin elasticity, joint health, gut lining integrity",
+    "bestTimeReason" : "AM with vitamin C to enhance collagen synthesis",
+    "category" : "supplement",
+    "cons" : [
+      "Digestive upset (bloating, heartburn) in some people",
+      "Bad taste or aftertaste with some brands",
+      "May contain heavy metals if poorly sourced",
+      "Not suitable for those with fish/shellfish allergies (marine collagen)",
+      "Results take 8-12 weeks to notice",
+      "Can cause a feeling of fullness"
+    ],
+    "defaultDose" : "10 g",
+    "emoji" : "sparkles",
+    "interactionNotes" : "No significant interactions. Safe to combine with most supplements",
+    "mechanism" : "Provides hydroxyproline and glycine as building blocks for connective tissue",
+    "name" : "Collagen",
+    "pros" : [
+      "Improves skin elasticity and reduces wrinkles",
+      "Reduces joint pain and stiffness",
+      "Strengthens hair and nails",
+      "Supports gut lining integrity",
+      "May improve bone density",
+      "Generally very safe and well-tolerated"
+    ],
+    "stackNotes" : "Vitamin C is essential cofactor  -  always pair together",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "melatonin"
+    ],
+    "benefit" : "Regulates circadian rhythm, improves sleep onset",
+    "bestTimeReason" : "30-60 min before desired sleep time. Less is more (0.3-1mg optimal)",
+    "category" : "supplement",
+    "cons" : [
+      "Daytime grogginess if dose is too high",
+      "Vivid dreams or nightmares",
+      "Can disrupt natural melatonin production if overused",
+      "Headaches and dizziness",
+      "May worsen depression in some people",
+      "Not effective for staying asleep (short half-life)",
+      "Can interact with blood thinners and diabetes meds",
+      "Tolerance can develop with nightly use"
+    ],
+    "defaultDose" : "0.5 mg",
+    "emoji" : "moon.fill",
+    "interactionNotes" : "May interact with blood pressure meds and immunosuppressants",
+    "mechanism" : "Binds MT1/MT2 receptors in SCN, signaling darkness to the brain",
+    "name" : "Melatonin",
+    "pros" : [
+      "Reduces time to fall asleep",
+      "Helps reset circadian rhythm (jet lag, shift work)",
+      "Powerful antioxidant",
+      "May support immune function",
+      "Safe for short-term use",
+      "Useful for adjusting sleep schedule"
+    ],
+    "stackNotes" : "Pairs with magnesium and glycine for comprehensive sleep support",
+    "timing" : "PM"
+  },
+  {
+    "aliases" : [
+      "berberine hcl"
+    ],
+    "benefit" : "Blood sugar regulation, gut health, cholesterol management",
+    "bestTimeReason" : "With meals to blunt glucose spike. Split into 2-3 doses daily",
+    "category" : "supplement",
+    "cons" : [
+      "GI distress: diarrhea, cramping, nausea (very common)",
+      "Interacts with many drugs via CYP450 enzymes",
+      "Can cause hypoglycemia if combined with diabetes meds",
+      "May kill beneficial gut bacteria",
+      "Contraindicated in pregnancy",
+      "Can cause constipation in some people",
+      "Should not combine with metformin (additive effects too strong)"
+    ],
+    "defaultDose" : "500 mg",
+    "emoji" : "leaf",
+    "interactionNotes" : "Potent  -  interacts with many medications via CYP450 enzymes. Consult doctor",
+    "mechanism" : "Activates AMPK pathway  -  similar mechanism to metformin",
+    "name" : "Berberine",
+    "pros" : [
+      "Lowers blood sugar as effectively as metformin in studies",
+      "Reduces LDL cholesterol and triglycerides",
+      "Anti-inflammatory and antimicrobial",
+      "Supports weight loss",
+      "May improve fatty liver (NAFLD)",
+      "Improves insulin sensitivity"
+    ],
+    "stackNotes" : "May pair with chromium for enhanced glucose control",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "turmeric",
+      "curcumin"
+    ],
+    "benefit" : "Powerful anti-inflammatory, joint comfort, brain health",
+    "bestTimeReason" : "With food and black pepper (piperine) for 2000% better absorption",
+    "category" : "supplement",
+    "cons" : [
+      "Very poor absorption without piperine/fat",
+      "May thin blood — risky before surgery or with blood thinners",
+      "Can cause stomach upset and acid reflux",
+      "May worsen gallbladder issues",
+      "Iron absorption may be reduced",
+      "Yellow staining of teeth and surfaces",
+      "Piperine increases absorption of many drugs (caution)"
+    ],
+    "defaultDose" : "500 mg",
+    "emoji" : "circle.fill",
+    "interactionNotes" : "May thin blood  -  caution with anticoagulants",
+    "mechanism" : "Inhibits NF-kB and COX-2 inflammatory pathways",
+    "name" : "Curcumin",
+    "pros" : [
+      "One of nature's most powerful anti-inflammatories",
+      "Reduces joint pain comparable to NSAIDs",
+      "Neuroprotective — may reduce Alzheimer's risk",
+      "Strong antioxidant properties",
+      "May reduce cancer risk (multiple pathways)",
+      "Improves endothelial function (heart health)"
+    ],
+    "stackNotes" : "Always take with piperine/BioPerine. Pairs with Omega-3 for inflammation",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "lions mane",
+      "hericium"
+    ],
+    "benefit" : "Neurogenesis, memory, focus, nerve repair",
+    "bestTimeReason" : "AM for cognitive benefits throughout the day",
+    "category" : "supplement",
+    "cons" : [
+      "May cause itchy skin (increased NGF)",
+      "Can slow blood clotting — caution before surgery",
+      "GI discomfort in some people",
+      "May lower blood sugar — monitor if diabetic",
+      "Allergic reactions possible (mushroom allergy)",
+      "Some users report reduced libido",
+      "Quality varies enormously between brands"
+    ],
+    "defaultDose" : "1,000 mg",
+    "emoji" : "allergens",
+    "interactionNotes" : "Generally very safe. May slightly lower blood sugar",
+    "mechanism" : "Stimulates NGF (nerve growth factor) production for brain plasticity",
+    "name" : "Lion's Mane",
+    "pros" : [
+      "Stimulates nerve growth factor (NGF) for brain repair",
+      "Improves memory and cognitive function",
+      "May reduce mild anxiety and depression",
+      "Supports nerve regeneration after injury",
+      "Anti-inflammatory and antioxidant",
+      "May help prevent neurodegenerative diseases"
+    ],
+    "stackNotes" : "Pairs with L-Theanine and caffeine for a nootropic stack",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "liposomal glutathione",
+      "gsh"
+    ],
+    "benefit" : "Master antioxidant, detoxification, immune support, skin brightening",
+    "bestTimeReason" : "AM on empty stomach. Liposomal form for better oral bioavailability",
+    "category" : "supplement",
+    "cons" : [
+      "Poor oral bioavailability (need liposomal or IV form)",
+      "Expensive for effective forms",
+      "May interfere with chemotherapy drugs",
+      "Bloating and cramping possible",
+      "Can cause zinc depletion with long-term use",
+      "May worsen asthma in some people (inhaled form)",
+      "Limited evidence for oral supplementation effectiveness"
+    ],
+    "defaultDose" : "500 mg",
+    "emoji" : "flask.fill",
+    "interactionNotes" : "May reduce chemotherapy effectiveness  -  avoid during active treatment",
+    "mechanism" : "Tripeptide that neutralizes ROS and recycles other antioxidants (C, E)",
+    "name" : "Glutathione",
+    "pros" : [
+      "The body's most powerful antioxidant",
+      "Detoxifies liver and protects from environmental toxins",
+      "Brightens skin and reduces hyperpigmentation",
+      "Supports immune function",
+      "Recycles vitamins C and E",
+      "May slow aging at the cellular level"
+    ],
+    "stackNotes" : "NAC is a precursor  -  taking both provides redundant glutathione support",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "coenzyme q10",
+      "ubiquinol",
+      "coq10"
+    ],
+    "benefit" : "Cellular energy, heart health, antioxidant, statin side-effect mitigation",
+    "bestTimeReason" : "With a fat-containing meal for absorption. AM for energy benefits",
+    "category" : "supplement",
+    "cons" : [
+      "Insomnia if taken late in the day",
+      "Mild GI upset (nausea, diarrhea)",
+      "May reduce effectiveness of blood thinners (warfarin)",
+      "Can lower blood pressure (caution if already low)",
+      "Expensive for therapeutic doses",
+      "Takes 4-12 weeks to notice benefits",
+      "May interact with chemotherapy and blood pressure medications"
+    ],
+    "defaultDose" : "200 mg",
+    "emoji" : "❤️",
+    "interactionNotes" : "May reduce blood thinner effectiveness. Safe with most supplements",
+    "mechanism" : "Essential electron carrier in mitochondrial ATP production (Complex III)",
+    "name" : "CoQ10",
+    "pros" : [
+      "Essential for mitochondrial energy production",
+      "Protects heart health and improves cardiac function",
+      "Counteracts statin-induced muscle pain and fatigue",
+      "Powerful antioxidant",
+      "May reduce migraine frequency",
+      "Supports fertility (egg and sperm quality)",
+      "Slows cellular aging"
+    ],
+    "stackNotes" : "Essential if on statins (they deplete CoQ10). Pairs with PQQ",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "lmnt",
+      "electrolyte",
+      "sodium",
+      "potassium"
+    ],
+    "benefit" : "Hydration, muscle function, nerve signaling, energy",
+    "bestTimeReason" : "AM or pre/post workout. First thing AM helps with morning cortisol",
+    "category" : "supplement",
+    "cons" : [
+      "Excess sodium can raise blood pressure",
+      "May worsen kidney conditions",
+      "Some people retain water/bloat",
+      "Can cause nausea if too concentrated",
+      "May interact with blood pressure medications",
+      "Potassium excess can be dangerous (cardiac risk)"
+    ],
+    "defaultDose" : "1 packet",
+    "emoji" : "drop.fill",
+    "interactionNotes" : "Caution with kidney disease or blood pressure medications",
+    "mechanism" : "Maintains osmotic balance and membrane potential for cellular function",
+    "name" : "Electrolytes",
+    "pros" : [
+      "Rapidly improves hydration and energy",
+      "Prevents muscle cramps during exercise",
+      "Supports nerve function and mental clarity",
+      "Helps with keto/fasting headaches",
+      "Improves athletic performance",
+      "Reduces morning brain fog"
+    ],
+    "stackNotes" : "Pairs with creatine for enhanced hydration and performance",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "tongkat",
+      "longjack",
+      "eurycoma"
+    ],
+    "benefit" : "Testosterone support, stress reduction, athletic performance",
+    "bestTimeReason" : "AM on empty stomach for peak absorption. Cycle 5 days on, 2 off",
+    "category" : "supplement",
+    "cons" : [
+      "Insomnia and restlessness (especially at high doses)",
+      "Can increase aggression or irritability",
+      "May cause anxiety in sensitive individuals",
+      "Not recommended during pregnancy/breastfeeding",
+      "Potential liver toxicity at very high doses",
+      "May interact with hormone-sensitive conditions",
+      "Quality varies widely — many adulterated products"
+    ],
+    "defaultDose" : "400 mg",
+    "emoji" : "tree.fill",
+    "interactionNotes" : "May interact with hormone therapies and blood sugar medications",
+    "mechanism" : "Reduces SHBG, freeing bound testosterone. Lowers cortisol via adaptogenic action",
+    "name" : "Tongkat Ali",
+    "pros" : [
+      "Clinically shown to increase free testosterone",
+      "Reduces cortisol and perceived stress",
+      "Improves body composition and athletic performance",
+      "May enhance libido and sexual function",
+      "Supports mood and well-being",
+      "Adaptogenic stress reduction"
+    ],
+    "stackNotes" : "Pairs with Fadogia Agrestis for testosterone. Add zinc for support",
+    "timing" : "AM"
+  },
+  {
+    "aliases" : [
+      "fadogia"
+    ],
+    "benefit" : "Supports luteinizing hormone and testosterone production",
+    "bestTimeReason" : "AM with Tongkat Ali. Cycle to avoid receptor desensitization",
+    "category" : "supplement",
+    "cons" : [
+      "Very limited human research — mostly animal studies",
+      "Potential testicular toxicity at high doses (animal data)",
+      "May cause liver enzyme elevation",
+      "Unknown long-term safety profile",
+      "Quality control issues with many products",
+      "Should be cycled (not used continuously)",
+      "May interact with hormone therapies"
+    ],
+    "defaultDose" : "600 mg",
+    "emoji" : "leaf.fill",
+    "interactionNotes" : "Limited safety data at high doses. Cycle on/off. Monitor liver enzymes",
+    "mechanism" : "Stimulates Leydig cells to increase testosterone synthesis",
+    "name" : "Fadogia Agrestis",
+    "pros" : [
+      "May increase luteinizing hormone",
+      "Supports testosterone production",
+      "Enhances athletic performance",
+      "Synergizes with Tongkat Ali",
+      "May improve libido"
+    ],
+    "stackNotes" : "Standard stack with Tongkat Ali for testosterone optimization",
+    "timing" : "AM"
+  }
+]

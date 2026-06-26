@@ -47,6 +47,9 @@ struct VitalsView: View {
                         InlineEmptyState(title: "No HR samples yet", message: "Take a reading to start your trend.")
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Heart rate")
+                .accessibilityValue("\(TodayInsights.hrRangeLabel(hrSamples, summary.latestHeartRate?.value)) beats per minute range")
 
                 DetailCard(title: "Blood oxygen", color: PulseColors.spo2) {
                     let label = TodayInsights.averageLabel(spo2Samples, summary.latestSpO2?.value)
@@ -68,6 +71,9 @@ struct VitalsView: View {
                         InlineEmptyState(title: "No SpO₂ samples yet", message: "Take a reading to start your trend.")
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Blood oxygen")
+                .accessibilityValue("\(TodayInsights.averageLabel(spo2Samples, summary.latestSpO2?.value)) percent average")
 
                 comingSoonCard(title: "HRV", message: "HRV decoding coming soon")
                 comingSoonCard(title: "Skin temperature", message: "Temperature decoding coming soon")

@@ -19,6 +19,20 @@ struct ResponseFunctionCall: Sendable {
 struct OpenAIResponse: Sendable {
     let id: String
     let outputItems: [ResponseOutputItem]
+    /// Token usage reported by the API, when present. Used for credit metering (E1).
+    let usage: TokenUsage?
+
+    struct TokenUsage: Sendable {
+        let inputTokens: Int
+        let outputTokens: Int
+        var totalTokens: Int { inputTokens + outputTokens }
+    }
+
+    init(id: String, outputItems: [ResponseOutputItem], usage: TokenUsage? = nil) {
+        self.id = id
+        self.outputItems = outputItems
+        self.usage = usage
+    }
 
     var functionCalls: [ResponseFunctionCall] {
         outputItems.compactMap { if case .functionCall(let fc) = $0 { return fc } else { return nil } }
@@ -61,7 +75,13 @@ struct OpenAIResponse: Sendable {
                 items.append(.other(type: type))
             }
         }
-        return OpenAIResponse(id: id, outputItems: items)
+        var usage: OpenAIResponse.TokenUsage?
+        if let usageObj = root["usage"] as? [String: Any] {
+            let input = (usageObj["input_tokens"] as? Int) ?? (usageObj["prompt_tokens"] as? Int) ?? 0
+            let output = (usageObj["output_tokens"] as? Int) ?? (usageObj["completion_tokens"] as? Int) ?? 0
+            usage = OpenAIResponse.TokenUsage(inputTokens: input, outputTokens: output)
+        }
+        return OpenAIResponse(id: id, outputItems: items, usage: usage)
     }
 
     private static func extractText(_ messageItem: [String: Any]) -> String {
@@ -78,9 +98,23 @@ struct OpenAIResponse: Sendable {
 /// it. Kept dictionary-based because tool specs and the strict output schema are
 /// naturally arbitrary JSON.
 enum OpenAIRequestBuilder {
-    /// One input message item.
-    static func message(role: String, content: String) -> [String: Any] {
-        ["role": role, "content": content]
+    /// One input message item. Plain-text by default; when `imageDataURLs` are
+    /// provided the content becomes a multimodal part array (text + image_url)
+    /// so vision-capable models can read attached photos. The OpenRouter chat
+    /// bridge passes the array straight through to chat-completions, which uses
+    /// the same `{type:"image_url", image_url:{url}}` shape.
+    static func message(role: String, content: String, imageDataURLs: [String] = []) -> [String: Any] {
+        guard !imageDataURLs.isEmpty else {
+            return ["role": role, "content": content]
+        }
+        var parts: [[String: Any]] = []
+        if !content.isEmpty {
+            parts.append(["type": "text", "text": content])
+        }
+        for url in imageDataURLs {
+            parts.append(["type": "image_url", "image_url": ["url": url]])
+        }
+        return ["role": role, "content": parts]
     }
 
     /// A function-call result item to feed back into the next turn.

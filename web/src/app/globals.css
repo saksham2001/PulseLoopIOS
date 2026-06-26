@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/*
+ * PulseLoop design tokens — ported 1:1 from the iOS asset catalog
+ * (PulseLoop/Assets.xcassets/*.colorset) and AppTheme.swift.
+ * Light theme is the default ("Notion/Attio" calm life-OS feel);
+ * dark theme mirrors the iOS "Aura" appearance.
+ */
+
+:root {
+  /* Surfaces */
+  --pulse-background: #ffffff;
+  --pulse-canvas: #ececee;
+  --pulse-fill-subtle: #f4f4f3;
+  --pulse-fill-muted: #fafafa;
+
+  /* Borders */
+  --pulse-border-hairline: #ececec;
+  --pulse-border-strong: #e4e4e2;
+
+  /* Text */
+  --pulse-text-primary: #1b1b1a;
+  --pulse-text-secondary: #6e6e6c;
+  --pulse-text-muted: #9a9a98;
+  --pulse-text-faint: #b4b4b2;
+
+  /* Accent (primary actions use black, not accent) */
+  --pulse-accent: #161616;
+  --pulse-on-accent: #ffffff;
+
+  /* Semantic */
+  --pulse-success: #2f7d5b;
+  --pulse-success-bg: #e8f2ec;
+  --pulse-alert: #b4453a;
+  --pulse-alert-bg: #f7e9e7;
+  --pulse-warning: #b8860b;
+  --pulse-warning-bg: #f6efdb;
+
+  /* Health metrics */
+  --pulse-heart-rate: #b4453a;
+  --pulse-steps: #2f7d5b;
+  --pulse-spo2: #4a7fb5;
+  --pulse-sleep: #6b5fa0;
+  --pulse-sleep-score: #8b7cff;
+  --pulse-calories: #c47230;
+  --pulse-distance: #4a7fb5;
+  --pulse-battery: #2f7d5b;
+  --pulse-readiness: #5b7d2f;
+
+  /* Radii (matches iOS PulseRadius) */
+  --pulse-radius-card: 14px;
+  --pulse-radius-button: 12px;
+  --pulse-radius-chip: 6px;
+  --pulse-radius-icon: 8px;
+}
+
+.dark,
+:root[data-theme="dark"] {
+  --pulse-background: #0a0a0c;
+  --pulse-canvas: #1c1c1e;
+  --pulse-fill-subtle: #2c2c2e;
+  --pulse-fill-muted: #252528;
+
+  --pulse-border-hairline: #38383a;
+  --pulse-border-strong: #48484a;
+
+  --pulse-text-primary: #f5f7fa;
+  --pulse-text-secondary: #aab3c2;
+  --pulse-text-muted: #6f7a8c;
+  --pulse-text-faint: #8e8e93;
+
+  --pulse-accent: #ffffff;
+  --pulse-on-accent: #0a0a0c;
+
+  --pulse-success-bg: #142b20;
+  --pulse-alert-bg: #2e1816;
+  --pulse-warning-bg: #2c2410;
+}
+
+@theme inline {
+  /* Surfaces */
+  --color-background: var(--pulse-background);
+  --color-canvas: var(--pulse-canvas);
+  --color-fill-subtle: var(--pulse-fill-subtle);
+  --color-fill-muted: var(--pulse-fill-muted);
+
+  /* Borders */
+  --color-border-hairline: var(--pulse-border-hairline);
+  --color-border-strong: var(--pulse-border-strong);
+
+  /* Text */
+  --color-text-primary: var(--pulse-text-primary);
+  --color-text-secondary: var(--pulse-text-secondary);
+  --color-text-muted: var(--pulse-text-muted);
+  --color-text-faint: var(--pulse-text-faint);
+
+  /* Accent */
+  --color-accent: var(--pulse-accent);
+  --color-on-accent: var(--pulse-on-accent);
+
+  /* Semantic */
+  --color-success: var(--pulse-success);
+  --color-success-bg: var(--pulse-success-bg);
+  --color-alert: var(--pulse-alert);
+  --color-alert-bg: var(--pulse-alert-bg);
+  --color-warning: var(--pulse-warning);
+  --color-warning-bg: var(--pulse-warning-bg);
+
+  /* Health metrics */
+  --color-heart-rate: var(--pulse-heart-rate);
+  --color-steps: var(--pulse-steps);
+  --color-spo2: var(--pulse-spo2);
+  --color-sleep: var(--pulse-sleep);
+  --color-sleep-score: var(--pulse-sleep-score);
+  --color-calories: var(--pulse-calories);
+  --color-distance: var(--pulse-distance);
+  --color-battery: var(--pulse-battery);
+  --color-readiness: var(--pulse-readiness);
+
+  /* Typography — Newsreader (serif titles) + Hanken Grotesk (body) */
+  --font-serif: var(--font-newsreader);
+  --font-sans: var(--font-hanken);
+
+  /* Radii */
+  --radius-card: var(--pulse-radius-card);
+  --radius-button: var(--pulse-radius-button);
+  --radius-chip: var(--pulse-radius-chip);
+  --radius-icon: var(--pulse-radius-icon);
+}
+
+* {
+  border-color: var(--pulse-border-hairline);
+}
+
+body {
+  background: var(--pulse-canvas);
+  color: var(--pulse-text-primary);
+  font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Uppercase tracked section labels (mirrors PulseFont section labels) */
+.pulse-section-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pulse-text-muted);
+}

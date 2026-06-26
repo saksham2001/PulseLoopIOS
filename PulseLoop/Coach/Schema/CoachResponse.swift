@@ -22,6 +22,18 @@ struct CoachResponse: Codable, Equatable {
     /// Forward-compatible structured cards. Not part of the v1 strict schema, so
     /// the model does not emit these yet; decoded leniently when present.
     var cards: [CoachCard]
+    /// Generated media (images/video) from the muapi tools. Copied verbatim by the
+    /// model from a `generate_*` tool result. Lenient like `cards`.
+    var media: [CoachMedia]
+    /// A text-defined diagram (Mermaid/SVG) from the `prepare_diagram` tool, copied
+    /// verbatim by the model. Optional and rendered locally; nil when absent.
+    var diagram: CoachDiagram?
+    /// Inline travel result cards (flights/stays/activities/restaurants) from the
+    /// `prepare_travel_cards` tool, copied verbatim by the model. Lenient, rendered
+    /// in chat and savable to a trip ("one shape, two surfaces").
+    var travelCards: [CoachTravelCard]
+    /// An optional proposed day-by-day itinerary outline accompanying travel cards.
+    var itinerary: [CoachItineraryDay]
 
     enum CodingKeys: String, CodingKey {
         case responseType = "response_type"
@@ -36,6 +48,10 @@ struct CoachResponse: Codable, Equatable {
         case actionsTaken = "actions_taken"
         case confidence
         case cards
+        case media
+        case diagram
+        case travelCards = "travel_cards"
+        case itinerary
     }
 
     init(
@@ -50,7 +66,11 @@ struct CoachResponse: Codable, Equatable {
         followUpChips: [String] = [],
         actionsTaken: [String] = [],
         confidence: CoachConfidence = .medium,
-        cards: [CoachCard] = []
+        cards: [CoachCard] = [],
+        media: [CoachMedia] = [],
+        diagram: CoachDiagram? = nil,
+        travelCards: [CoachTravelCard] = [],
+        itinerary: [CoachItineraryDay] = []
     ) {
         self.responseType = responseType
         self.title = title
@@ -64,6 +84,10 @@ struct CoachResponse: Codable, Equatable {
         self.actionsTaken = actionsTaken
         self.confidence = confidence
         self.cards = cards
+        self.media = media
+        self.diagram = diagram
+        self.travelCards = travelCards
+        self.itinerary = itinerary
     }
 
     init(from decoder: Decoder) throws {
@@ -80,6 +104,10 @@ struct CoachResponse: Codable, Equatable {
         actionsTaken = try c.decodeIfPresent([String].self, forKey: .actionsTaken) ?? []
         confidence = try c.decodeIfPresent(CoachConfidence.self, forKey: .confidence) ?? .medium
         cards = try c.decodeIfPresent([CoachCard].self, forKey: .cards) ?? []
+        media = try c.decodeIfPresent([CoachMedia].self, forKey: .media) ?? []
+        diagram = try c.decodeIfPresent(CoachDiagram.self, forKey: .diagram)
+        travelCards = try c.decodeIfPresent([CoachTravelCard].self, forKey: .travelCards) ?? []
+        itinerary = try c.decodeIfPresent([CoachItineraryDay].self, forKey: .itinerary) ?? []
     }
 
     // MARK: - Persistence helpers (CoachMessage.cardsJSON)
@@ -101,6 +129,71 @@ struct CoachResponse: Codable, Equatable {
         guard let json, let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(CoachResponse.self, from: data)
     }
+
+    // MARK: - Adaptive shape guard (Experience loop M1)
+
+    /// Defense-in-depth so the rendered shape matches the user's intent: a chart
+    /// only belongs on a response the model explicitly committed to as
+    /// chart-bearing (`insight_with_chart`). Any stray chart on a conversational
+    /// reply (`insight`, `question`, casual/emotional answers, etc.) is dropped so
+    /// we never surface, say, a heart-rate card for "I'm horny".
+    ///
+    /// The prompt is the primary lever (see `CoachPromptBuilder`); this keeps the
+    /// invariant true even when the model misbehaves.
+    func adaptiveShaped() -> CoachResponse {
+        var copy = self.textSanitized()
+        if copy.chart != nil, copy.responseType != .insightWithChart {
+            copy.chart = nil
+        }
+        return copy
+    }
+
+    /// Strip em/en dashes from every user-visible text field. Models reach for the
+    /// em dash constantly and ignore "don't use it" instructions, so we enforce it
+    /// deterministically at the boundary: a spaced dash (" — ") becomes a comma,
+    /// an unspaced one ("word—word") becomes a hyphen. Applied to all rendered
+    /// strings (title, summary, bullets, notes, chips, actions, card/source text)
+    /// so output reads clean and consistent.
+    func textSanitized() -> CoachResponse {
+        var copy = self
+        copy.title = Self.deDash(title)
+        copy.summary = Self.deDash(summary)
+        copy.bullets = bullets.map(Self.deDash)
+        copy.safetyNote = safetyNote.map(Self.deDash)
+        copy.dataQualityNote = dataQualityNote.map(Self.deDash)
+        copy.followUpChips = followUpChips.map(Self.deDash)
+        copy.actionsTaken = actionsTaken.map(Self.deDash)
+        copy.cards = cards.map { card in
+            var c = card
+            c.title = card.title.map(Self.deDash)
+            c.body = card.body.map(Self.deDash)
+            return c
+        }
+        return copy
+    }
+
+    /// Replace em/en dashes with reader-friendly punctuation. Spaced dashes →
+    /// comma + space (clause break); tight dashes → hyphen (compound). Also
+    /// normalizes the double-hyphen "--" some models emit as an em-dash stand-in.
+    static func deDash(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+        var out = text
+        // Spaced em/en dash (clause break) → comma + space.
+        for sep in [" — ", " – ", "— ", " —", "– ", " –"] {
+            out = out.replacingOccurrences(of: sep, with: ", ")
+        }
+        // Double-hyphen em-dash stand-in.
+        out = out.replacingOccurrences(of: " -- ", with: ", ")
+        out = out.replacingOccurrences(of: "--", with: "-")
+        // Any remaining tight em/en dash → hyphen (compound words).
+        out = out.replacingOccurrences(of: "—", with: "-")
+        out = out.replacingOccurrences(of: "–", with: "-")
+        // Tidy artifacts from substitution.
+        out = out.replacingOccurrences(of: " ,", with: ",")
+        out = out.replacingOccurrences(of: ", ,", with: ",")
+        while out.contains("  ") { out = out.replacingOccurrences(of: "  ", with: " ") }
+        return out
+    }
 }
 
 enum CoachResponseType: String, Codable {
@@ -111,6 +204,14 @@ enum CoachResponseType: String, Codable {
     case dataMissing = "data_missing"
     case safetyGuidance = "safety_guidance"
     case errorRecovery = "error_recovery"
+
+    /// Lenient decoding: models occasionally emit an off-spec `response_type`
+    /// (e.g. "informative"). Treat any unrecognized value as a plain insight so a
+    /// valid reply isn't discarded over an enum mismatch.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = CoachResponseType(rawValue: raw) ?? .insight
+    }
 }
 
 enum CoachConfidence: String, Codable {

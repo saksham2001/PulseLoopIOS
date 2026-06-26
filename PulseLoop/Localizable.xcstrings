@@ -1,0 +1,42 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "home.empty.body" : {
+      "comment" : "Empty-state body shown on Home when no modules are installed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing comes pre-installed. Browse the catalog and add the modules you want — Sleep, Tasks, Protocol, and more."
+          }
+        }
+      }
+    },
+    "home.empty.button" : {
+      "comment" : "Button on the Home empty state that opens the install catalog.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browse modules"
+          }
+        }
+      }
+    },
+    "home.empty.title" : {
+      "comment" : "Title of the Home empty state shown when no modules are installed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install your first module"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

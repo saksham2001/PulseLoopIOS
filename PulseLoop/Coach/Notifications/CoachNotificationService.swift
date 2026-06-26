@@ -30,7 +30,7 @@ final class CoachNotificationService {
         coordinator: RingSyncCoordinator? = nil,
         keyStore: APIKeyStore = OpenAIKeychainStore(),
         settingsStore: CoachSettingsStore = .shared,
-        clientFactory: @escaping (String) -> ResponsesClient = { OpenAIResponsesClient(apiKey: $0) }
+        clientFactory: @escaping (String) -> ResponsesClient = { OpenRouterResponsesClient(apiKey: $0) }
     ) {
         self.modelContext = modelContext
         self.coordinator = coordinator
@@ -50,7 +50,9 @@ final class CoachNotificationService {
 
         if !force, isDuplicate(slot: slot, now: now) { return .skippedDuplicate }
 
-        let apiKey = (try? keyStore.readKey()) ?? nil
+        // Prefer the injected key store (tests/alt-providers) over the app's
+        // resolved OpenRouter key, so generation doesn't depend on a bundled secret.
+        let apiKey = (try? keyStore.readKey()).flatMap { $0 } ?? AIService.shared.currentAPIKey
         let flags = CoachFeatureFlags(settings: settings, hasAPIKey: apiKey != nil)
         guard force || flags.coachEnabled else { return .skippedDisabled }
 
@@ -108,7 +110,7 @@ final class CoachNotificationService {
     // MARK: - Record + deliver
 
     /// Persist the check-in and seed a *fresh* conversation for it. Each
-    /// notification is independent — tapping it opens its own thread instead of
+    /// notification is independent  -  tapping it opens its own thread instead of
     /// piling into one shared "Daily check-ins" log (which made earlier check
     /// -ins masquerade as prior turns and confused the coach on follow-ups).
     @discardableResult
@@ -128,7 +130,7 @@ final class CoachNotificationService {
             cardsJSON: response.encodedJSON(), createdAt: now
         ))
         convo.updatedAt = now
-        try? modelContext.save()
+        modelContext.saveOrLog("coach.notification")
         return convo
     }
 
@@ -144,7 +146,8 @@ final class CoachNotificationService {
         let content = UNMutableNotificationContent()
         content.title = notification.title
         content.body = notification.body
-        content.sound = .default
+        // Honor the user's Quiet Hours comfort preference: deliver silently at night.
+        content.sound = ComfortPrefs.isQuietNow ? nil : .default
         content.userInfo = [CoachNotificationService.conversationIdKey: conversationId.uuidString]
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)

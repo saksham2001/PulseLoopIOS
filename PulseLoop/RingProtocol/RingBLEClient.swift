@@ -45,7 +45,7 @@ final class RingBLEClient: NSObject {
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
     /// Strong references to scanned peripherals, keyed by identifier. Required because
-    /// `connect(_:)` needs the actual `CBPeripheral` object — `retrievePeripherals` returns
+    /// `connect(_:)` needs the actual `CBPeripheral` object  -  `retrievePeripherals` returns
     /// nothing for a device the system has never connected to before.
     private var discoveredPeripherals: [UUID: CBPeripheral] = [:]
     private var writeChar: CBCharacteristic?

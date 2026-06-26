@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Date-range reads over the existing repositories, shared by retrieval,
-/// charting, and analysis tools. The LLM never queries SwiftData directly — it
+/// charting, and analysis tools. The LLM never queries SwiftData directly  -  it
 /// only ever reaches data through these deterministic helpers (the iOS analogue
 /// of the web app's tool data layer).
 @MainActor

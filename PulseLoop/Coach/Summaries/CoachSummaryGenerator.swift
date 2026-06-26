@@ -1,6 +1,6 @@
 import Foundation
 
-/// Single-shot OpenAI call that produces a coach-card summary. No tools — just
+/// Single-shot OpenAI call that produces a coach-card summary. No tools  -  just
 /// system + developer → strict `{title, body, chips}`. Returns the provided
 /// scripted `fallback` (from `TodayInsights`/`SleepInsights`) when the coach is
 /// disabled or the call fails, so cards never look empty.

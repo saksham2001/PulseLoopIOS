@@ -23,6 +23,11 @@ enum MeasurementSource: String, Codable, CaseIterable {
     case workout
     case manual
     case live
+    case fitbit
+    case googleFit = "googlefit"
+    case oura
+    case whoop
+    case garmin
 }
 
 enum SleepStage: String, Codable, CaseIterable {
@@ -308,6 +313,7 @@ final class UserProfile {
     var sex: String?
     var heightCm: Double?
     var weightKg: Double?
+    var avatarData: Data?
     var onboardingCompleted: Bool
     var baselineCompleted: Bool
     var createdAt: Date
@@ -573,15 +579,116 @@ final class CoachMessage {
     var cardsJSON: String?
     /// Encoded `PendingAction` awaiting a Confirm/Cancel tap (Milestone B).
     var pendingActionJSON: String? = nil
+    /// Optional image the user attached to this message (compressed JPEG), shown
+    /// in the transcript. Stored externally so large blobs don't bloat the row.
+    @Attribute(.externalStorage) var attachmentData: Data? = nil
     var createdAt: Date
 
-    init(id: UUID = UUID(), conversationId: UUID, role: String, body: String, cardsJSON: String? = nil, pendingActionJSON: String? = nil, createdAt: Date = Date()) {
+    init(id: UUID = UUID(), conversationId: UUID, role: String, body: String, cardsJSON: String? = nil, pendingActionJSON: String? = nil, attachmentData: Data? = nil, createdAt: Date = Date()) {
         self.id = id
         self.conversationId = conversationId
         self.role = role
         self.body = body
         self.cardsJSON = cardsJSON
         self.pendingActionJSON = pendingActionJSON
+        self.attachmentData = attachmentData
+        self.createdAt = createdAt
+    }
+}
+
+/// User feedback on a single assistant reply (Life OS T0). One tap (up/down) plus
+/// an optional structured reason. This is the signal that makes routing
+/// data-driven (T4) and powers the quality dashboard (T6). Content-free beyond the
+/// rating + a low-cardinality reason code; never stores the message text.
+@Model
+final class CoachFeedback {
+    @Attribute(.unique) var id: UUID
+    /// The assistant `CoachMessage` this feedback is about.
+    var messageId: UUID
+    var conversationId: UUID
+    /// "up" or "down".
+    var rating: String
+    /// Optional low-cardinality reason (e.g. "wrong", "too_long", "off_topic",
+    /// "didnt_act"); empty when the user just tapped a thumb.
+    var reason: String
+    /// Snapshot of which specialist/model produced the rated reply, copied from the
+    /// turn's decision log so feedback can be sliced by role/model without a join.
+    var roleLabel: String
+    var model: String
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        messageId: UUID,
+        conversationId: UUID,
+        rating: String,
+        reason: String = "",
+        roleLabel: String = "",
+        model: String = "",
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.messageId = messageId
+        self.conversationId = conversationId
+        self.rating = rating
+        self.reason = reason
+        self.roleLabel = roleLabel
+        self.model = model
+        self.createdAt = createdAt
+    }
+}
+
+/// Per-turn decision log (Life OS T0). One row per assistant turn capturing how the
+/// turn was handled: which specialist role + model, how many tool rounds ran, which
+/// tools, token usage, latency, whether the answer had to be recovered on the
+/// reliability anchor, and any error. Content-free (tool *names* only, no args/text)
+/// so it's safe to keep on-device and aggregate for the quality dashboard (T6) and
+/// feedback-weighted routing (T4).
+@Model
+final class TurnTelemetry {
+    @Attribute(.unique) var id: UUID
+    var messageId: UUID
+    var conversationId: UUID
+    var roleLabel: String
+    var model: String
+    var rounds: Int
+    /// Comma-separated tool names used this turn (low-cardinality, no arguments).
+    var toolNames: String
+    var inputTokens: Int
+    var outputTokens: Int
+    var latencyMs: Int
+    var recovered: Bool
+    /// Short error reason when the turn failed at transport/parse; empty on success.
+    var errorReason: String
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        messageId: UUID,
+        conversationId: UUID,
+        roleLabel: String,
+        model: String,
+        rounds: Int = 0,
+        toolNames: String = "",
+        inputTokens: Int = 0,
+        outputTokens: Int = 0,
+        latencyMs: Int = 0,
+        recovered: Bool = false,
+        errorReason: String = "",
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.messageId = messageId
+        self.conversationId = conversationId
+        self.roleLabel = roleLabel
+        self.model = model
+        self.rounds = rounds
+        self.toolNames = toolNames
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.latencyMs = latencyMs
+        self.recovered = recovered
+        self.errorReason = errorReason
         self.createdAt = createdAt
     }
 }

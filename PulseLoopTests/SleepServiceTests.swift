@@ -5,7 +5,11 @@ import SwiftData
 @MainActor
 final class SleepServiceTests: XCTestCase {
     private func night(_ dayOffset: Int) -> Date {
-        let base = TestSupport.day(dayOffset)
+        // Anchor on the day-view's reference night (which flips at 4 AM) rather than
+        // wall-clock "today" so `night(0)` is always the night the Day view targets,
+        // even when the suite runs between midnight and 4 AM.
+        let ref = SleepService.dayReferenceNight()
+        let base = Calendar.current.date(byAdding: .day, value: dayOffset, to: ref) ?? ref
         return Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: base) ?? base
     }
 
@@ -83,5 +87,22 @@ final class SleepServiceTests: XCTestCase {
         let at4am = cal.date(bySettingHour: 4, minute: 0, second: 0, of: today)!
         XCTAssertEqual(SleepService.dayReferenceNight(now: at3am), yesterday, "before 4 AM, still last night")
         XCTAssertEqual(SleepService.dayReferenceNight(now: at4am), today, "from 4 AM, flip to today")
+    }
+
+    /// Regression for the README "known bug": when last night has data AND an
+    /// older session also exists, the Day view must surface *last night*, never
+    /// the most-recently-recorded older night. (Day range carries a single
+    /// reference night, so this also proves the stale night is excluded.)
+    func testDayRangeShowsLastNightNotStaleRecord() throws {
+        let context = try TestSupport.makeContext()
+        // An older night with a distinctive deep total, plus last night with a
+        // different, distinctive light total.
+        TestSupport.insertSleep(nightStart: night(-5), stages: Array(repeating: .deep, count: 77), into: context)
+        TestSupport.insertSleep(nightStart: night(0), stages: Array(repeating: .light, count: 88), into: context)
+        let day = SleepService.sleepRange(.day, context: context)
+        XCTAssertEqual(day.sessions.count, 1, "day range is a single reference night")
+        let shown = SleepInsights.validSessions(day.sessions).last
+        XCTAssertEqual(shown?.lightMinutes, 88, "day view shows last night")
+        XCTAssertEqual(shown?.deepMinutes, 0, "the 5-day-old deep session must not leak in")
     }
 }

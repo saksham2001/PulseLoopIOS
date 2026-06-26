@@ -1,0 +1,159 @@
+---
+description: PulseLoop design system and UI patterns for all SwiftUI views
+globs: "**/*.swift"
+alwaysApply: false
+---
+
+# PulseLoop Design System
+
+## Aesthetic
+
+Pure-neutral white, calm "life OS" feel. Inspired by Notion + Attio. No gradients on interactive elements. Monochrome iconography only (SF Symbols). Never use emoji characters in UI — always use `Image(systemName:)`.
+
+## Colors (use `PulseColors.*`)
+
+| Token | Usage |
+|-------|-------|
+| `.background` | Page/card surface (white) |
+| `.canvas` | Slightly off-white page fill |
+| `.fillSubtle` | Icon backgrounds, input fills, inactive pill |
+| `.fillMuted` | Search bar background |
+| `.borderHairline` | Card outlines (1pt) |
+| `.borderStrong` | Button outlines, checkbox borders |
+| `.textPrimary` | Headlines, body text, icons |
+| `.textSecondary` | Supporting body text |
+| `.textMuted` | Timestamps, placeholders, section labels |
+| `.textFaint` | Disabled / decorative |
+| `.accent` | Rare emphasis only (not for primary buttons) |
+
+Primary action buttons use **`Color.black`** background with white text — not accent.
+
+## Typography (use `PulseFont.*`)
+
+- **Headings/greetings**: `PulseFont.title(28)` — Newsreader serif
+- **Card titles**: `PulseFont.titleMedium(22)` — Newsreader medium
+- **Section labels**: `PulseFont.bodyMedium(11)`, `.tracking(0.8)`, `.textMuted`, UPPERCASED
+- **Body text**: `PulseFont.body(14–15)` — Hanken Grotesk regular
+- **Buttons**: `PulseFont.bodySemibold(15)` — Hanken Grotesk semibold
+- **Chips/badges**: `.system(size: 11–12)` or `PulseFont.bodyMedium(12)`
+- **Micro labels**: `PulseFont.bodyMedium(11)`, tracked
+
+## Spacing & Layout
+
+- Page horizontal padding: **20px**
+- Card internal padding: **16–20px**
+- Card corner radius: **14–16px** (`.continuous`)
+- Button height: **44px** (standard), **52px** (large onboarding)
+- Button radius: **10–12px**
+- Section vertical spacing: **10–14px**
+- Inter-card spacing: **14px**
+
+## Cards
+
+```swift
+.padding(16)
+.background(PulseColors.background)
+.clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+.overlay {
+    RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(PulseColors.borderHairline, lineWidth: 1)
+}
+```
+
+Or use `PulseCard(padding:radius:)` for standard cards.
+
+## Buttons
+
+**Primary (black fill):**
+```swift
+Text("Start")
+    .font(PulseFont.bodySemibold(15))
+    .foregroundStyle(.white)
+    .frame(maxWidth: .infinity)
+    .frame(height: 44)
+    .background(Color.black)
+    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+```
+
+**Secondary (outlined):**
+```swift
+Text("Not now")
+    .font(PulseFont.bodySemibold(15))
+    .foregroundStyle(PulseColors.textSecondary)
+    .padding(.horizontal, 16)
+    .frame(height: 44)
+    .background(PulseColors.background)
+    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    .overlay {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .stroke(PulseColors.borderStrong, lineWidth: 1)
+    }
+```
+
+## Icons
+
+- Always use **SF Symbols** — never emoji characters
+- Icon backgrounds: `PulseColors.fillSubtle`, clipped to `RoundedRectangle(cornerRadius: 8)` or `Circle()`
+- Icon weight: `.medium` for UI chrome, `.semibold` for emphasis
+- Icon color: `PulseColors.textPrimary` (default) or `.textMuted` (secondary)
+
+## Section Headers
+
+```swift
+Text("RIGHT NOW")
+    .font(PulseFont.bodyMedium(11))
+    .foregroundStyle(PulseColors.textMuted)
+    .tracking(0.8)
+```
+
+## Task Rows
+
+- Checkbox: 18x18 rounded rectangle (radius 6)
+- Done state: black fill + white checkmark; strikethrough text in `.textMuted`
+- Undone state: 1.5pt `borderStrong` stroke
+- Chips: small rounded rect (radius 6), font size 11, colored background
+
+## Tab Bar (BottomNavBar)
+
+- 5 tabs: Home, Tracker, [AI center], Inbox, Friends
+- Center button: black rounded rectangle (12pt radius) with white `sparkles` icon
+- Tab icons: SF Symbols, outlined style, 20pt
+- Active state: `textPrimary`; inactive: `textMuted`
+- Bar background: `PulseColors.background` with `borderHairline` top stroke (0.5pt)
+
+## Sheets / Modals
+
+- Use `.presentationDetents` for half-height sheets
+- Always include `.presentationDragIndicator(.visible)`
+- Sheet background: `PulseColors.background`
+- Sheet titles: left-aligned, bold, 22pt system font
+
+## Navigation
+
+- Use `NavigationStack` with `NavigationPath` for programmatic navigation
+- Routes defined in `AppRoute` enum in `AppTheme.swift`
+- Sidebar presented as `.sheet` from hamburger/avatar tap
+
+## Voice Capture (fullScreenCover)
+
+- Triggered from center AI button
+- White background, "VOICE CAPTURE" tracked header, X close button
+- Waveform bars synced to `VoiceServices.audioLevel`
+- Stop button: black circle (72pt) with white rounded square inside
+
+## Chat / Messenger
+
+- Message bubbles: sent = black background + white text; received = `fillSubtle` + `textPrimary`
+- Bubble radius: 18pt
+- Input bar: `fillSubtle` rounded text field + "plus" button (share sheet) + circular send button
+- Share sheet: 3-column grid of icon buttons on `fillSubtle` rounded squares (64x64, radius 16)
+
+## General Rules
+
+1. No emoji anywhere in rendered UI — use SF Symbols exclusively
+2. No colored accent on primary buttons — use black
+3. Keep the interface "calm" — minimal color, generous whitespace
+4. All interactive elements need `.buttonStyle(.plain)` when inside `NavigationLink` or `Button` wrappers to prevent default highlight
+5. Section labels are always uppercase, tracked, and muted
+6. Prefer `.system(size:weight:)` for one-off sizes; use `PulseFont.*` for body/title consistency
+7. Cards always have hairline border — never rely on shadow alone

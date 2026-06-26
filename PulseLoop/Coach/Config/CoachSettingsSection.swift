@@ -10,57 +10,52 @@ struct CoachSettingsSection: View {
     @Environment(RingSyncCoordinator.self) private var coordinator
     @Query(sort: \CoachMemory.importance, order: .reverse) private var memories: [CoachMemory]
     @State private var store = CoachSettingsStore.shared
-    private let keyStore = OpenAIKeychainStore()
 
-    @State private var keyDraft: String = ""
-    @State private var hasSavedKey: Bool = false
-    @State private var showKey: Bool = false
-    @State private var keyError: String?
     @State private var notifPermissionDenied = false
     @State private var testStatus: String?
 
+    @State private var muapiKeyDraft: String = ""
+    @State private var muapiShowKey: Bool = false
+    @State private var hasSavedMuapiKey: Bool = false
+    @State private var muapiError: String?
+    private let muapiStore = MuapiKeychainStore()
+
     private var flags: CoachFeatureFlags {
-        CoachFeatureFlags(settings: store.settings, hasAPIKey: hasSavedKey)
+        CoachFeatureFlags(settings: store.settings, hasAPIKey: AIService.shared.hasAPIKey)
     }
 
     var body: some View {
-        SectionHeader(title: "AI Coach", action: nil)
+        SectionHeader(title: "AI Assistant", action: nil)
         StatusCopy(title: "Status", body: flags.statusLine)
-        toggleRow("Enable AI Coach", isOn: masterEnabledBinding)
+        toggleRow("Enable AI Assistant", isOn: masterEnabledBinding)
 
         if store.settings.coachMasterEnabled {
-            labeledRow("Provider") {
-                Picker("Provider", selection: providerBinding) {
-                    ForEach(CoachProviderMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+            labeledRow("Personality") {
+                Picker("Personality", selection: personalityBinding) {
+                    ForEach(CoachPersonality.allCases) { p in
+                        Text("\(p.emoji) \(p.label)").tag(p)
                     }
                 }
                 .pickerStyle(.menu)
                 .tint(PulseColors.accent)
-            }
-
-            labeledRow("Model") {
-                Picker("Model", selection: modelBinding) {
-                    ForEach(CoachModel.allCases) { model in
-                        Text(model.label).tag(model.rawValue)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(PulseColors.accent)
-            }
-
-            if store.settings.providerMode == .userOpenAIKey {
-                keyField
             }
 
             toggleRow("Web search", isOn: webSearchBinding)
             toggleRow("AI actions (set goals, log, edit)", isOn: writeToolsBinding)
             toggleRow("Live ring measurements", isOn: liveMeasurementsBinding)
+            toggleRow("Sub-App Builder (design sub-apps)", isOn: subAppBuilderBinding)
+            toggleRow("Platform control (manage modules & features)", isOn: platformControlBinding)
+            toggleRow("Media generation (images/video)", isOn: mediaGenerationBinding)
+
+            if store.settings.enableMediaGeneration {
+                muapiField
+                toggleRow("Sandbox mode (free, example media)", isOn: muapiSandboxBinding)
+            }
 
             notificationsSection
 
             if !memories.isEmpty {
-                SectionHeader(title: "Coach memory", action: nil)
+                SectionHeader(title: "Assistant memory", action: nil)
                 ForEach(memories) { memory in memoryRow(memory) }
             }
         }
@@ -98,14 +93,14 @@ struct CoachSettingsSection: View {
 
     // MARK: - Key field
 
-    private var keyField: some View {
+    private var muapiField: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Group {
-                    if showKey {
-                        TextField("sk-…", text: $keyDraft)
+                    if muapiShowKey {
+                        TextField("muapi x-api-key", text: $muapiKeyDraft)
                     } else {
-                        SecureField("sk-…", text: $keyDraft)
+                        SecureField("muapi x-api-key", text: $muapiKeyDraft)
                     }
                 }
                 .textInputAutocapitalization(.never)
@@ -116,8 +111,8 @@ struct CoachSettingsSection: View {
                 .background(PulseColors.cardSoft, in: Capsule())
                 .overlay(Capsule().stroke(PulseColors.borderSubtle, lineWidth: 1))
 
-                Button { showKey.toggle() } label: {
-                    Image(systemName: showKey ? "eye.slash" : "eye")
+                Button { muapiShowKey.toggle() } label: {
+                    Image(systemName: muapiShowKey ? "eye.slash" : "eye")
                         .font(.system(size: 15))
                         .foregroundStyle(PulseColors.textMuted)
                         .frame(width: 40, height: 40)
@@ -126,17 +121,17 @@ struct CoachSettingsSection: View {
             }
 
             HStack(spacing: 8) {
-                QuickActionButton(label: hasSavedKey ? "Update key" : "Save key", accent: true) { saveKey() }
-                    .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                if hasSavedKey {
-                    QuickActionButton(label: "Remove") { removeKey() }
+                QuickActionButton(label: hasSavedMuapiKey ? "Update key" : "Save key", accent: true) { saveMuapiKey() }
+                    .disabled(muapiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if hasSavedMuapiKey {
+                    QuickActionButton(label: "Remove") { removeMuapiKey() }
                 }
             }
 
-            if let keyError {
-                Text(keyError).font(.caption).foregroundStyle(PulseColors.danger)
+            if let muapiError {
+                Text(muapiError).font(.caption).foregroundStyle(PulseColors.danger)
             } else {
-                Text("Stored only in your device Keychain. Used to call OpenAI directly.")
+                Text("Stored only in your device Keychain. Used to call muapi.ai for image/video generation. Get a key at muapi.ai.")
                     .font(.caption).foregroundStyle(PulseColors.textMuted)
             }
         }
@@ -145,7 +140,7 @@ struct CoachSettingsSection: View {
         .background(PulseColors.card)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
-        .onAppear(perform: refreshKeyState)
+        .onAppear(perform: refreshMuapiState)
     }
 
     // MARK: - Small layout helpers
@@ -190,11 +185,8 @@ struct CoachSettingsSection: View {
         )
     }
 
-    private var providerBinding: Binding<CoachProviderMode> {
-        Binding(get: { store.settings.providerMode }, set: { store.settings.providerMode = $0 })
-    }
-    private var modelBinding: Binding<String> {
-        Binding(get: { store.settings.model }, set: { store.settings.model = $0 })
+    private var personalityBinding: Binding<CoachPersonality> {
+        Binding(get: { store.settings.personality }, set: { store.settings.personality = $0 })
     }
     private var webSearchBinding: Binding<Bool> {
         Binding(get: { store.settings.enableWebSearch }, set: { store.settings.enableWebSearch = $0 })
@@ -204,6 +196,46 @@ struct CoachSettingsSection: View {
     }
     private var liveMeasurementsBinding: Binding<Bool> {
         Binding(get: { store.settings.enableLiveMeasurements }, set: { store.settings.enableLiveMeasurements = $0 })
+    }
+    private var subAppBuilderBinding: Binding<Bool> {
+        Binding(get: { store.settings.enableSubAppBuilder }, set: { store.settings.enableSubAppBuilder = $0 })
+    }
+
+    private var platformControlBinding: Binding<Bool> {
+        Binding(get: { store.settings.enablePlatformControl }, set: { store.settings.enablePlatformControl = $0 })
+    }
+
+    private var mediaGenerationBinding: Binding<Bool> {
+        Binding(get: { store.settings.enableMediaGeneration }, set: { store.settings.enableMediaGeneration = $0 })
+    }
+
+    private var muapiSandboxBinding: Binding<Bool> {
+        Binding(get: { store.settings.muapiSandbox }, set: { store.settings.muapiSandbox = $0 })
+    }
+
+    private func refreshMuapiState() {
+        hasSavedMuapiKey = muapiStore.hasKey
+    }
+
+    private func saveMuapiKey() {
+        muapiError = nil
+        do {
+            try muapiStore.saveKey(muapiKeyDraft)
+            muapiKeyDraft = ""
+            hasSavedMuapiKey = true
+        } catch {
+            muapiError = error.localizedDescription
+        }
+    }
+
+    private func removeMuapiKey() {
+        muapiError = nil
+        do {
+            try muapiStore.deleteKey()
+            hasSavedMuapiKey = false
+        } catch {
+            muapiError = error.localizedDescription
+        }
     }
 
     // MARK: - Daily notifications
@@ -267,35 +299,6 @@ struct CoachSettingsSection: View {
             case .sent(let slot): testStatus = "Sent a \(slot.label.lowercased()) check-in."
             default: testStatus = "Couldn't send (\(outcome))."
             }
-        }
-    }
-
-    // MARK: - Key actions
-
-    private func refreshKeyState() {
-        hasSavedKey = ((try? keyStore.readKey()) ?? nil) != nil
-    }
-
-    private func saveKey() {
-        keyError = nil
-        do {
-            try keyStore.saveKey(keyDraft)
-            keyDraft = ""
-            showKey = false
-            refreshKeyState()
-        } catch {
-            keyError = error.localizedDescription
-        }
-    }
-
-    private func removeKey() {
-        keyError = nil
-        do {
-            try keyStore.deleteKey()
-            keyDraft = ""
-            refreshKeyState()
-        } catch {
-            keyError = error.localizedDescription
         }
     }
 }

@@ -19,7 +19,7 @@ enum ChipTone {
 
     var background: Color {
         switch self {
-        case .neutral: return Color.white.opacity(0.10)
+        case .neutral: return PulseColors.chipFill
         case .up: return PulseColors.success.opacity(0.15)
         case .down: return PulseColors.danger.opacity(0.15)
         case .warn: return PulseColors.warning.opacity(0.15)
@@ -32,6 +32,16 @@ enum ChipTone {
         case .up: return PulseColors.success.opacity(0.30)
         case .down: return PulseColors.danger.opacity(0.30)
         case .warn: return PulseColors.warning.opacity(0.30)
+        }
+    }
+
+    /// Non-color cue so trend direction is legible for color-blind users.
+    var symbol: String? {
+        switch self {
+        case .neutral: return nil
+        case .up: return "arrow.up"
+        case .down: return "arrow.down"
+        case .warn: return "exclamationmark"
         }
     }
 }
@@ -80,14 +90,20 @@ private struct FlowChips: View {
         // Two-row wrap is plenty for the 3 hero chips; use an HStack that wraps.
         HStack(spacing: 6) {
             ForEach(chips) { chip in
-                Text(chip.label)
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .foregroundStyle(chip.tone.foreground)
-                    .background(chip.tone.background)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(chip.tone.border, lineWidth: 1))
+                HStack(spacing: 3) {
+                    if let symbol = chip.tone.symbol {
+                        Image(systemName: symbol)
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    Text(chip.label)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .foregroundStyle(chip.tone.foreground)
+                .background(chip.tone.background)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(chip.tone.border, lineWidth: 1))
             }
         }
     }
@@ -111,6 +127,7 @@ struct CoachMessageCard: View {
             HStack(spacing: 6) {
                 Circle().fill(PulseColors.accent).frame(width: 6, height: 6)
                     .shadow(color: PulseColors.accent.opacity(0.8), radius: 5)
+                    .accessibilityHidden(true)
                 Text("COACH")
                     .font(.system(size: 10, weight: .medium))
                     .tracking(1.8)
@@ -171,14 +188,26 @@ struct MetricCardButton: View {
     var sparkline: [Double] = []
     var onTap: (() -> Void)?
 
+    private var accessibilityDescription: String {
+        var parts = ["\(label): \(value)"]
+        if let unit { parts.append(unit) }
+        if let delta {
+            let dir = delta.value >= 0 ? "up" : "down"
+            parts.append("\(dir) \(abs(delta.value)) \(delta.label)")
+        }
+        return parts.joined(separator: ", ")
+    }
+
     var body: some View {
         Button {
+            HapticService.impact(.light)
             onTap?()
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Circle().fill(color).frame(width: 8, height: 8)
                         .shadow(color: color.opacity(0.7), radius: 5)
+                        .accessibilityHidden(true)
                     Text(label.uppercased())
                         .font(.system(size: 11, weight: .medium))
                         .tracking(0.6)
@@ -213,19 +242,24 @@ struct MetricCardButton: View {
                 Spacer(minLength: 0)
                 if sparkline.count > 1 {
                     MiniSparkline(values: sparkline, color: color).frame(height: 30)
+                        .accessibilityHidden(true)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(16)
-            .frame(height: 150)
+            // Minimum height keeps the grid tidy but lets the card grow with larger text.
+            .frame(minHeight: 150)
             .background(PulseColors.card)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
-            // Non-tappable tiles should look identical to tappable ones — never dimmed.
+            .clipShape(RoundedRectangle(cornerRadius: PulseRadius.large, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: PulseRadius.large, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
+            // Non-tappable tiles should look identical to tappable ones  -  never dimmed.
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .allowsHitTesting(onTap != nil)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+        .accessibilityAddTraits(onTap != nil ? .isButton : [])
     }
 }
 
@@ -239,7 +273,10 @@ struct RangeToggleView: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option in
                 let active = selection == option.0
-                Button { selection = option.0 } label: {
+                Button {
+                    if !active { HapticService.selection() }
+                    selection = option.0
+                } label: {
                     Text(option.1)
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(0.8)
@@ -267,7 +304,10 @@ struct SleepRangeSelectorView: View {
         HStack(spacing: 4) {
             ForEach(options, id: \.0) { option in
                 let active = selection == option.0
-                Button { selection = option.0 } label: {
+                Button {
+                    if !active { HapticService.selection() }
+                    selection = option.0
+                } label: {
                     Text(option.1)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(active ? PulseColors.textPrimary : PulseColors.textMuted)
@@ -393,10 +433,10 @@ struct SleepHeroCardView: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 4) {
-                Text(score.map { "\($0)" } ?? "—")
+                Text(score.map { "\($0)" } ?? " - ")
                     .font(.system(size: 40, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(Color(hex: "#8B7CFF"))
+                    .foregroundStyle(PulseColors.sleepScore)
                 if let scoreLabel, score != nil {
                     Text(scoreLabel)
                         .font(.system(size: 14, weight: .medium))
@@ -434,6 +474,7 @@ struct SleepStageSummaryCardsView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Circle().fill(color).frame(width: 8, height: 8).shadow(color: color.opacity(0.7), radius: 5)
+                    .accessibilityHidden(true)
                 Text(label.uppercased())
                     .font(.system(size: 10, weight: .medium))
                     .tracking(0.6)
@@ -465,6 +506,7 @@ struct DetailCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Circle().fill(color).frame(width: 8, height: 8).shadow(color: color.opacity(0.7), radius: 5)
+                    .accessibilityHidden(true)
                 Text(title.uppercased())
                     .font(.system(size: 11, weight: .medium))
                     .tracking(1.0)
@@ -487,7 +529,10 @@ struct QuickActionButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            HapticService.impact(.light)
+            action()
+        } label: {
             Text(label)
                 .font(.system(size: 14, weight: .semibold))
                 .frame(maxWidth: .infinity)
@@ -603,7 +648,10 @@ struct ActivityWorkoutRow: View {
     var onTap: (() -> Void)?
 
     var body: some View {
-        Button { onTap?() } label: {
+        Button {
+            HapticService.impact(.light)
+            onTap?()
+        } label: {
             HStack(spacing: 12) {
                 Image(systemName: ActivityMeta.icon(session.type))
                     .font(.system(size: 18))
@@ -634,6 +682,7 @@ struct ActivityWorkoutRow: View {
                 }
                 if session.useGps {
                     Image(systemName: "map").font(.system(size: 14)).foregroundStyle(PulseColors.textMuted)
+                        .accessibilityLabel("Has GPS route")
                 }
             }
             .padding(16)
@@ -646,7 +695,7 @@ struct ActivityWorkoutRow: View {
     }
 
     private var durationLabel: String {
-        guard let ended = session.endedAt else { return "—" }
+        guard let ended = session.endedAt else { return " - " }
         let seconds = Int(ended.timeIntervalSince(session.startedAt) - session.totalPauseSeconds)
         let m = seconds / 60
         if m >= 60 { return "\(m / 60)h \(m % 60)m" }

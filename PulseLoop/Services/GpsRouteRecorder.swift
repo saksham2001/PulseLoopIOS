@@ -7,7 +7,7 @@ import Observation
 /// Distance is derived later from those rows by `ActivityService.gpsDistance`.
 ///
 /// CoreLocation only delivers real fixes on a physical device; in the Simulator it stays idle
-/// (or uses a simulated location), which is fine — the rest of the workout flow still works.
+/// (or uses a simulated location), which is fine  -  the rest of the workout flow still works.
 ///
 /// Concurrency mirrors `RingBLEClient`: the manager is created on the main actor so its delegate
 /// callbacks arrive on the main run loop; the delegate methods are `nonisolated` and re-enter the
@@ -110,7 +110,7 @@ final class GpsRouteRecorder: NSObject, CLLocationManagerDelegate {
             authorization = status
             // The "Always" grant typically arrives *after* start() (iOS shows the When-In-Use
             // prompt first, then escalates). Enable background updates the moment we have Always
-            // while a workout is tracking — otherwise location pauses on background, the app
+            // while a workout is tracking  -  otherwise location pauses on background, the app
             // suspends, and sensor polling freezes.
             if status == .authorizedAlways, isTracking {
                 manager.allowsBackgroundLocationUpdates = true

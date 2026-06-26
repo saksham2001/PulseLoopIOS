@@ -1,7 +1,7 @@
 import Foundation
 
 /// Runs one model-requested function call: looks it up, executes (the tool
-/// validates its own args), and never throws — failures come back as an
+/// validates its own args), and never throws  -  failures come back as an
 /// `{"error": …}` `ToolResult` so a bad tool can't crash the turn.
 @MainActor
 enum ToolCallExecutor {

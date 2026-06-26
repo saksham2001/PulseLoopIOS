@@ -2,6 +2,87 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>PULSELOOP_WEB_URL</key>
+	<string>https://pulseloop-web.vercel.app</string>
+	<key>OPENROUTER_API_KEY</key>
+	<string>REPLACE_WITH_YOUR_OPENROUTER_API_KEY</string>
+	<key>FITBIT_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_FITBIT_CLIENT_ID</string>
+	<key>GOOGLE_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID</string>
+	<key>OURA_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_OURA_CLIENT_ID</string>
+	<key>WHOOP_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_WHOOP_CLIENT_ID</string>
+	<key>GARMIN_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_GARMIN_CLIENT_ID</string>
+	<key>GMAIL_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_GMAIL_CLIENT_ID</string>
+	<key>GOOGLE_CALENDAR_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_GOOGLE_CALENDAR_CLIENT_ID</string>
+	<key>SLACK_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_SLACK_CLIENT_ID</string>
+	<key>NOTION_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_NOTION_CLIENT_ID</string>
+	<key>TODOIST_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_TODOIST_CLIENT_ID</string>
+	<key>AMADEUS_CLIENT_ID</key>
+	<string>REPLACE_WITH_YOUR_AMADEUS_CLIENT_ID</string>
+	<key>AMADEUS_CLIENT_SECRET</key>
+	<string>REPLACE_WITH_YOUR_AMADEUS_CLIENT_SECRET</string>
+	<key>POINTS_VALUATION_BASE_URL</key>
+	<string>REPLACE_WITH_YOUR_POINTS_VALUATION_BASE_URL</string>
+	<key>POINTS_VALUATION_API_KEY</key>
+	<string>REPLACE_WITH_YOUR_POINTS_VALUATION_API_KEY</string>
+	<key>WEB_SEARCH_API_KEY</key>
+	<string>REPLACE_WITH_YOUR_WEB_SEARCH_API_KEY</string>
+	<key>MODULE_GALLERY_BASE_URL</key>
+	<string>REPLACE_WITH_YOUR_MODULE_GALLERY_BASE_URL</string>
+	<key>MODULE_GALLERY_API_KEY</key>
+	<string>REPLACE_WITH_YOUR_MODULE_GALLERY_API_KEY</string>
+	<key>MODEL_CATALOG_BASE_URL</key>
+	<string>REPLACE_WITH_YOUR_MODEL_CATALOG_BASE_URL</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.pulseloop.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pulseloop</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>PulseLoop uses your camera to scan supplement and medication labels for instant identification and health insights.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PulseLoop uses your microphone for voice capture so you can log supplements, create tasks, and talk to AI hands-free.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>PulseLoop uses speech recognition to transcribe your voice into text for quick logging and AI commands.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>PulseLoop reads heart rate, sleep, steps, and other health data from Apple Health to give you a complete picture alongside your ring data.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>PulseLoop can write workouts and health metrics you log to Apple Health so all your apps stay in sync.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PulseLoop uses your location to map your outdoor walks, runs, and rides and measure distance during a workout.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>PulseLoop uses your location in the background so it can keep recording your route and distance while a workout is active and the screen is off.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>PulseLoop connects to your smart ring over Bluetooth to read heart rate, SpO₂, sleep, and activity data.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>PulseLoop reads your calendar events so the assistant can plan your day around them. It never changes events without your confirmation.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>PulseLoop reads your calendar events so the assistant can plan your day around them. It never changes events without your confirmation.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>HankenGrotesk-Variable.ttf</string>
+		<string>Newsreader-Variable.ttf</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

@@ -5,7 +5,7 @@
 //  Shared types for the workout Live Activity. Must compile in BOTH the app
 //  target (PulseLoop) and the widget extension target
 //  (PulseLoopLiveActivityExtension). Reference only Foundation / ActivityKit /
-//  AppIntents / SwiftUI here — no app-only types.
+//  AppIntents / SwiftUI here  -  no app-only types.
 //
 
 import Foundation
@@ -24,7 +24,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         var startDate: Date
         /// When paused, the instant to freeze the timer at; nil while recording.
         var pausedAt: Date?
-        /// Whether this activity records GPS — drives whether Distance/Pace fields are shown.
+        /// Whether this activity records GPS  -  drives whether Distance/Pace fields are shown.
         var usesGps: Bool
         var distanceMeters: Double
         var paceSecondsPerKm: Double?
@@ -132,7 +132,7 @@ enum WorkoutLAColors {
     }
 
     static func paceLabel(_ secPerKm: Double?) -> String {
-        guard let secPerKm, secPerKm.isFinite, secPerKm > 0 else { return "—" }
+        guard let secPerKm, secPerKm.isFinite, secPerKm > 0 else { return " - " }
         let total = Int(secPerKm.rounded())
         let minutes = total / 60
         let seconds = total % 60
@@ -140,7 +140,7 @@ enum WorkoutLAColors {
     }
 
     static func distanceLabel(_ meters: Double) -> String {
-        guard meters >= 50 else { return "—" }
+        guard meters >= 50 else { return " - " }
         return String(format: "%.2f km", meters / 1000)
     }
 }

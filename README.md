@@ -112,9 +112,14 @@ launch with the `-seedDemo YES` argument.
 
 ## Known bugs
 
-- **Sleep page shows the last *recorded* sleep, not last night's.** If no sleep
-  was recorded for the most recent day, the Sleep view falls back to the most
-  recent session on file instead of reflecting that the latest day has no data.
+- _None currently tracked._
+
+> **Fixed:** the Sleep "Day" view previously fell back to the last *recorded*
+> night when last night had no data, so a stale session could masquerade as last
+> night. The Day view now anchors on "last night" (`SleepService.dayReferenceNight`,
+> flipping from yesterday to today at 4 AM) and shows an empty state when no sleep
+> was captured; older nights still surface under Week/Month/Year. Covered by
+> `PulseLoopTests/SleepServiceTests.swift`.
 
 ---
 
