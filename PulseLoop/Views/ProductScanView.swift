@@ -279,8 +279,9 @@ struct ProductScanView: View {
                             searchResults = []
                         } label: {
                             HStack(spacing: 12) {
-                                Text(result.info.emoji)
-                                    .font(.system(size: 22))
+                                Image(systemName: result.info.emoji.isEmpty ? "shippingbox.fill" : result.info.emoji)
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(PulseColors.textPrimary)
                                     .frame(width: 40, height: 40)
                                     .background(PulseColors.fillSubtle)
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -498,8 +499,9 @@ struct ProductCardView: View {
     private var productInfo: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Text(product.emoji)
-                    .font(.system(size: 28))
+                Image(systemName: product.emoji.isEmpty ? "shippingbox.fill" : product.emoji)
+                    .font(.system(size: 22))
+                    .foregroundStyle(categoryColor)
                     .frame(width: 48, height: 48)
                     .background(categoryColor.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 14))

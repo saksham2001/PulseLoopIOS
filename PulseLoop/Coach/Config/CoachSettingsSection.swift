@@ -33,7 +33,7 @@ struct CoachSettingsSection: View {
             labeledRow("Personality") {
                 Picker("Personality", selection: personalityBinding) {
                     ForEach(CoachPersonality.allCases) { p in
-                        Text("\(p.emoji) \(p.label)").tag(p)
+                        Label(p.label, systemImage: p.iconSystemName).tag(p)
                     }
                 }
                 .pickerStyle(.menu)

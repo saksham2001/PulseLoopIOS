@@ -147,7 +147,7 @@ enum OpenFDAService {
             aliases: [name.lowercased(), drug.genericName.lowercased()],
             category: "medication",
             defaultDose: "\(formInfo)See prescribing info",
-            emoji: "💊",
+            emoji: "pills.fill",
             timing: "See label",
             benefit: benefit,
             mechanism: mechanism,

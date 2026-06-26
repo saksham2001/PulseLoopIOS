@@ -694,7 +694,7 @@ struct TrackerView: View {
     private func logMeal() {
         let desc = mealDescription.trimmingCharacters(in: .whitespaces)
         guard !desc.isEmpty else { return }
-        let meal = MealLog(name: "Meal", description_: desc, emoji: "🍽️", calories: 0)
+        let meal = MealLog(name: "Meal", description_: desc, emoji: "fork.knife", calories: 0)
         modelContext.insert(meal)
         modelContext.saveOrLog("tracker", surface: true)
         mealDescription = ""

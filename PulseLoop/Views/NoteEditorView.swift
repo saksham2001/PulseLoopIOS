@@ -138,7 +138,7 @@ struct NotesListView: View {
     private var collectionChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                collectionChip(id: nil, emoji: "🗂", name: "All")
+                collectionChip(id: nil, emoji: "tray.full.fill", name: "All")
                 ForEach(collections) { c in
                     collectionChip(id: c.id, emoji: c.emoji, name: c.name)
                 }
@@ -157,7 +157,7 @@ struct NotesListView: View {
             HapticService.impact(.light)
         } label: {
             HStack(spacing: 5) {
-                Text(emoji).font(.system(size: 12))
+                Image(systemName: emoji.isEmpty ? "folder" : emoji).font(.system(size: 12))
                 Text(name).font(PulseFont.bodyMedium(13))
             }
             .foregroundStyle(isSelected ? .white : PulseColors.textSecondary)
@@ -560,12 +560,12 @@ struct NoteEditorView: View {
                 Button { setCollection(nil) } label: { Label("No collection", systemImage: "tray") }
                 if !collections.isEmpty { Divider() }
                 ForEach(collections) { c in
-                    Button { setCollection(c.id) } label: { Text("\(c.emoji)  \(c.name)") }
+                    Button { setCollection(c.id) } label: { Label(c.name, systemImage: c.emoji.isEmpty ? "folder" : c.emoji) }
                 }
             } label: {
                 HStack(spacing: 5) {
                     if let c = currentCollection {
-                        Text(c.emoji).font(.system(size: 12))
+                        Image(systemName: c.emoji.isEmpty ? "folder" : c.emoji).font(.system(size: 12))
                         Text(c.name).font(PulseFont.bodyMedium(13))
                     } else {
                         Image(systemName: "folder.badge.plus").font(.system(size: 12))
@@ -616,7 +616,7 @@ struct NoteEditorView: View {
                     if let match {
                         note.collectionId = match.id
                     } else {
-                        let created = Collection(name: name, emoji: "🗂", order: collections.count)
+                        let created = Collection(name: name, emoji: "folder", order: collections.count)
                         modelContext.insert(created)
                         note.collectionId = created.id
                     }
@@ -1723,7 +1723,10 @@ struct VoiceNoteRecorderView: View {
                 Spacer()
                 if !isRecording && !isProcessing {
                     Menu {
-                        Button {} label: { Label("Settings", systemImage: "gear") }
+                        Button {
+                            stopAndDismiss()
+                            path.append(AppRoute.settings)
+                        } label: { Label("Voice & capture settings", systemImage: "gear") }
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 16, weight: .medium))

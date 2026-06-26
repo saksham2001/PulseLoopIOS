@@ -513,8 +513,9 @@ struct FriendsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         ForEach(last7.reversed(), id: \.id) { entry in
-                            Text(moodEmoji(entry.mood))
-                                .font(.system(size: 24))
+                            Image(systemName: moodEmoji(entry.mood))
+                                .font(.system(size: 20))
+                                .foregroundStyle(moodColor(entry.mood))
                         }
                     }
                     Text("\(last7.count)/3 check-ins needed for trend")
@@ -530,8 +531,9 @@ struct FriendsView: View {
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(moodColor(entry.mood))
                                 .frame(width: 28, height: CGFloat(entry.mood) * 10)
-                            Text(moodEmoji(entry.mood))
+                            Image(systemName: moodEmoji(entry.mood))
                                 .font(.system(size: 10))
+                                .foregroundStyle(moodColor(entry.mood))
                         }
                     }
                     Spacer()
@@ -565,11 +567,11 @@ struct FriendsView: View {
 
     private func moodEmoji(_ mood: Int) -> String {
         switch mood {
-        case 1: return "😔"
-        case 2: return "😐"
-        case 3: return "🙂"
-        case 4: return "😊"
-        default: return "🔥"
+        case 1: return "cloud.rain.fill"
+        case 2: return "cloud.fill"
+        case 3: return "cloud.sun.fill"
+        case 4: return "sun.max.fill"
+        default: return "flame.fill"
         }
     }
 
@@ -719,8 +721,9 @@ struct FriendsView: View {
     private func quitCard(_ vice: Vice) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(vice.emoji)
-                    .font(.system(size: 22))
+                Image(systemName: vice.emoji.isEmpty ? "nosign" : vice.emoji)
+                    .font(.system(size: 20))
+                    .foregroundStyle(PulseColors.textPrimary)
                 Text(vice.name)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(PulseColors.textPrimary)
@@ -1290,6 +1293,9 @@ struct FriendProfileView: View {
 
 struct InviteFriendsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showShare = false
+
+    private let inviteText = "Join me on PulseLoop — your calm, voice-first life OS. https://pulseloop.app/invite"
 
     var body: some View {
         VStack(spacing: 24) {
@@ -1309,7 +1315,7 @@ struct InviteFriendsView: View {
             }
             .padding(.horizontal, 32)
 
-            Button {} label: {
+            Button { showShare = true } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 14, weight: .medium))
@@ -1323,6 +1329,7 @@ struct InviteFriendsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .padding(.horizontal, 20)
+            .sheet(isPresented: $showShare) { ShareSheet(items: [inviteText]) }
 
             Spacer()
         }

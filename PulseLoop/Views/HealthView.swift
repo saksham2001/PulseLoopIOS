@@ -539,8 +539,9 @@ struct WorkoutListRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(emojiForType(session.type))
-                .font(.system(size: 16))
+            Image(systemName: emojiForType(session.type))
+                .font(.system(size: 15))
+                .foregroundStyle(PulseColors.textPrimary)
                 .frame(width: 34, height: 34)
                 .background(PulseColors.fillSubtle)
                 .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -592,14 +593,14 @@ struct WorkoutListRow: View {
 
     private func emojiForType(_ type: String) -> String {
         switch type.lowercased() {
-        case "run": return "🏃"
-        case "walk": return "🚶"
-        case "cycle": return "🚴"
-        case "gym", "strength": return "🏋️"
-        case "hike": return "🥾"
-        case "yoga": return "🧘"
-        case "swim": return "🏊"
-        default: return "⚡"
+        case "run": return "figure.run"
+        case "walk": return "figure.walk"
+        case "cycle": return "figure.outdoor.cycle"
+        case "gym", "strength": return "figure.strengthtraining.traditional"
+        case "hike": return "figure.hiking"
+        case "yoga": return "figure.yoga"
+        case "swim": return "figure.pool.swim"
+        default: return "bolt.fill"
         }
     }
 }

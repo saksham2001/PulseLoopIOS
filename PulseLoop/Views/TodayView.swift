@@ -22,12 +22,12 @@ struct TodayView: View {
                 HeroInsightCardView(title: hero.title, summary: hero.summary, chips: hero.chips)
 
                 if coachEnabled {
-                    Button { } label: {
+                    Button { CoachNavigation.shared.askAI("") } label: {
                         Text("Ask Assistant")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(PulseFont.bodySemibold(14))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(PulseColors.background)
                             .background(PulseColors.accent)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }

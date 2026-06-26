@@ -49,8 +49,9 @@ fastlane/test_output
 web/.env.local
 
 # Large binary model + framework assets (managed out-of-band, not in git)
-Models/
-Frameworks/
+# Anchored to repo root so the app's own source dir (PulseLoop/Models/) is NOT ignored.
+/Models/
+/Frameworks/
 
 # Web app build artifacts & dependencies
 web/node_modules/

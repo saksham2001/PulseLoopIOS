@@ -46,8 +46,9 @@ struct QuitDetailView: View {
 
     private var heroSection: some View {
         VStack(spacing: 16) {
-            Text(vice.emoji)
-                .font(.system(size: 48))
+            Image(systemName: vice.emoji.isEmpty ? "nosign" : vice.emoji)
+                .font(.system(size: 44))
+                .foregroundStyle(PulseColors.textPrimary)
 
             Text("\(vice.currentStreak)")
                 .font(PulseFont.titleSemibold(56))
@@ -406,13 +407,13 @@ struct AddViceSheet: View {
     @State private var motivation2 = ""
 
     private let presets: [(name: String, emoji: String)] = [
-        ("Nicotine", "🚬"),
-        ("Alcohol", "🍺"),
-        ("Caffeine", "☕"),
-        ("Cannabis", "🌿"),
-        ("Sugar", "🍬"),
-        ("Vaping", "💨"),
-        ("Social Media", "📱"),
+        ("Nicotine", "smoke.fill"),
+        ("Alcohol", "wineglass.fill"),
+        ("Caffeine", "cup.and.saucer.fill"),
+        ("Cannabis", "leaf.fill"),
+        ("Sugar", "birthday.cake.fill"),
+        ("Vaping", "wind"),
+        ("Social Media", "iphone"),
     ]
 
     var body: some View {
@@ -447,8 +448,8 @@ struct AddViceSheet: View {
     }
 
     private var selectedEmoji: String {
-        if name == "Custom" { return "🚫" }
-        return presets.first(where: { $0.name == name })?.emoji ?? "🚫"
+        if name == "Custom" { return "nosign" }
+        return presets.first(where: { $0.name == name })?.emoji ?? "nosign"
     }
 
     private var substanceSection: some View {
@@ -465,8 +466,9 @@ struct AddViceSheet: View {
                         emoji = preset.emoji
                     } label: {
                         VStack(spacing: 4) {
-                            Text(preset.emoji)
+                            Image(systemName: preset.emoji)
                                 .font(.system(size: 22))
+                                .foregroundStyle(name == preset.name ? .white : PulseColors.textPrimary)
                             Text(preset.name)
                                 .font(PulseFont.caption)
                                 .foregroundStyle(name == preset.name ? .white : PulseColors.textPrimary)
@@ -482,8 +484,9 @@ struct AddViceSheet: View {
                     name = "Custom"
                 } label: {
                     VStack(spacing: 4) {
-                        Text("✏️")
+                        Image(systemName: "pencil")
                             .font(.system(size: 22))
+                            .foregroundStyle(name == "Custom" ? .white : PulseColors.textPrimary)
                         Text("Custom")
                             .font(PulseFont.caption)
                             .foregroundStyle(name == "Custom" ? .white : PulseColors.textPrimary)

@@ -45,6 +45,7 @@ private let sampleMessages: [ChatMessage] = [
 
 struct MessengerView: View {
     @State private var searchText = ""
+    @State private var showCompose = false
 
     private var filtered: [Conversation] {
         if searchText.isEmpty { return sampleConversations }
@@ -81,6 +82,14 @@ struct MessengerView: View {
             }
         }
         .background(PulseColors.background)
+        .sheet(isPresented: $showCompose) {
+            NavigationStack {
+                ChatThreadView(contactName: "New message")
+                    .navigationTitle("New message")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { showCompose = false } } }
+            }
+        }
     }
 
     private var messengerHeader: some View {
@@ -89,7 +98,7 @@ struct MessengerView: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(PulseColors.textPrimary)
             Spacer()
-            Button {} label: {
+            Button { showCompose = true } label: {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.white)
@@ -148,6 +157,7 @@ struct ChatThreadView: View {
     @State private var showShareSheet = false
     @State private var sharedMessages: [SharedMessage] = []
     @State private var showPhotoPicker = false
+    @State private var messages: [ChatMessage] = sampleMessages
 
     struct SharedMessage: Identifiable {
         let id = UUID()
@@ -165,7 +175,7 @@ struct ChatThreadView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     dayHeader("Today")
-                    ForEach(sampleMessages) { msg in
+                    ForEach(messages) { msg in
                         if msg.sharedCard != nil {
                             sharedCardBubble(msg)
                         } else {
@@ -392,6 +402,15 @@ struct ChatThreadView: View {
         }
     }
 
+    private func sendMessage() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let f = DateFormatter(); f.dateFormat = "h:mm a"
+        messages.append(ChatMessage(text: trimmed, isSent: true, time: f.string(from: Date())))
+        inputText = ""
+        HapticService.impact(.light)
+    }
+
     private func fetchHealthScore(for item: String, type: String, icon: String) async {
         if let result = await AIService.shared.rateHealthScore(item: item, type: type) {
             await MainActor.run {
@@ -439,7 +458,7 @@ struct ChatThreadView: View {
                     .stroke(PulseColors.borderHairline, lineWidth: 1)
             }
 
-            Button {} label: {
+            Button { sendMessage() } label: {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
@@ -447,7 +466,7 @@ struct ChatThreadView: View {
                     .background(inputText.isEmpty ? PulseColors.textMuted : Color.black)
                     .clipShape(Circle())
             }
-            .disabled(inputText.isEmpty)
+            .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -853,16 +872,16 @@ struct ChatShareSheet: View {
 
     private var moodPickerView: some View {
         let filtered = moods.prefix(10)
-        let moodEmojis = ["", "😞", "😕", "😐", "🙂", "😊"]
+        let moodLabels = ["", "Low", "Down", "Okay", "Good", "Great"]
         return itemListView(
             searchPlaceholder: nil,
             items: Array(filtered),
             emptyText: "No mood entries",
             newItemPlaceholder: "How are you feeling?..."
         ) { entry in
-            let emoji = entry.mood >= 1 && entry.mood <= 5 ? moodEmojis[entry.mood] : "😐"
-            selectableRow(icon: "face.smiling", title: "\(emoji) Mood \(entry.mood)/5", subtitle: entry.date.formatted(date: .abbreviated, time: .shortened), chipText: entry.notes) {
-                onAction?(.mood("\(emoji) Mood \(entry.mood)/5, Energy \(entry.energy)/5\(entry.notes != nil ? " – \(entry.notes!)" : "")")); dismiss()
+            let label = entry.mood >= 1 && entry.mood <= 5 ? moodLabels[entry.mood] : "Okay"
+            selectableRow(icon: "face.smiling", title: "\(label) · Mood \(entry.mood)/5", subtitle: entry.date.formatted(date: .abbreviated, time: .shortened), chipText: entry.notes) {
+                onAction?(.mood("Mood \(entry.mood)/5 (\(label)), Energy \(entry.energy)/5\(entry.notes != nil ? " – \(entry.notes!)" : "")")); dismiss()
             }
         } onNew: { text in
             onAction?(.mood(text)); dismiss()

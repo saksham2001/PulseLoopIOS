@@ -270,8 +270,9 @@ struct JournalMetricRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(metric.emoji)
-                .font(.system(size: 20))
+            Image(systemName: metric.emoji.isEmpty ? "circle" : metric.emoji)
+                .font(.system(size: 18))
+                .foregroundStyle(PulseColors.textSecondary)
                 .frame(width: 28)
                 .accessibilityHidden(true)
             Text(metric.title)

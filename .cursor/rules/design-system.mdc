@@ -148,10 +148,20 @@ Text("RIGHT NOW")
 - Input bar: `fillSubtle` rounded text field + "plus" button (share sheet) + circular send button
 - Share sheet: 3-column grid of icon buttons on `fillSubtle` rounded squares (64x64, radius 16)
 
+## Shared Components (compose these — never fork a one-off)
+
+These live in `App/AppTheme.swift` and `DesignSystem/Components.swift`. Always reach for the shared primitive before hand-rolling a layout.
+
+- **`HeroCard`** — the black "just one thing" next-action card. `eyebrow` + Newsreader `title` + optional `support`, plus filled `primary` and quiet `secondary` actions. Ink fill comes from `PulseColors.accent` (#161616 light / white dark) so it flips in dark mode. Use for the single most-important action on a screen. Don't draw a black `RoundedRectangle` by hand.
+- **`IconTileRow`** — the canonical list row: SF-Symbol tile in `fillSubtle`, title + optional subtitle, optional trailing value, chevron when it has an `action`. Place inside a `PulseCard`; separate stacked rows with `IconTileRow.divider`. Rows with an `action` drill in — no dead rows.
+- **`SegmentedControl`** — the one shared segmented control (Schedule/Protocol/Wellness, Category, Timing…). Gray `fillSubtle` track, white selected pill with soft shadow, `bodySemibold`. Generic over any `Hashable` via a `title` closure. Use this everywhere a segmented control appears; don't build per-screen variants.
+- **`EmptyStateCard`** — designed empty state on the canonical card: neutral icon tile, Newsreader title, body, optional black CTA. Use on any data surface that can be empty instead of a bare "No data" label.
+- **`SectionHeader`** (in `RootViews.swift`) / **`EyebrowLabel`** — uppercase, tracked, muted section labels with optional trailing action.
+
 ## General Rules
 
 1. No emoji anywhere in rendered UI — use SF Symbols exclusively
-2. No colored accent on primary buttons — use black
+2. No colored accent on primary buttons — use black (the `accent` token resolves to black/ink in light, white in dark)
 3. Keep the interface "calm" — minimal color, generous whitespace
 4. All interactive elements need `.buttonStyle(.plain)` when inside `NavigationLink` or `Button` wrappers to prevent default highlight
 5. Section labels are always uppercase, tracked, and muted

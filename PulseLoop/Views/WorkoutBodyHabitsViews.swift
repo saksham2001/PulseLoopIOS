@@ -533,8 +533,9 @@ struct HabitsTrackingView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.white)
                     } else {
-                        Text(habit.emoji)
-                            .font(.system(size: 16))
+                        Image(systemName: habit.emoji.isEmpty ? "circle" : habit.emoji)
+                            .font(.system(size: 15))
+                            .foregroundStyle(PulseColors.textSecondary)
                     }
                 }
             }

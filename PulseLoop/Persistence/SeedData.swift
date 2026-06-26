@@ -263,7 +263,7 @@ enum SeedData {
         context.insert(NoteBlock(noteId: note.id, order: 4, kind: .todo, content: "Draft the August pricing experiment"))
 
         // Medications / Supplements / Peptides (enriched with AI metadata)
-        context.insert(Medication(name: "Vitamin D3", dose: "2,000 IU · with breakfast", category: .supplement, emoji: "☀️", timing: "AM",
+        context.insert(Medication(name: "Vitamin D3", dose: "2,000 IU · with breakfast", category: .supplement, emoji: "sun.max.fill", timing: "AM",
             benefit: "Supports bone health, immune function, and mood regulation",
             mechanism: "Fat-soluble secosteroid that regulates calcium absorption and immune cell activity",
             interactionNotes: "Space 2h from magnesium for optimal uptake",
@@ -332,7 +332,7 @@ enum SeedData {
 
         // Meals
         context.insert(MealLog(name: "Breakfast", description_: "Greek yogurt, berries, granola", emoji: "cup.and.saucer.fill", calories: 420, proteinG: 28))
-        context.insert(MealLog(name: "Snack", description_: "Protein shake · oat milk", emoji: "☕", calories: 180, proteinG: 30))
+        context.insert(MealLog(name: "Snack", description_: "Protein shake · oat milk", emoji: "cup.and.saucer.fill", calories: 180, proteinG: 30))
         context.insert(MealLog(name: "Lunch", description_: "Chicken bowl, rice, greens", emoji: "fork.knife", calories: 640, proteinG: 38, isPlanned: true))
 
         // Inbox items

@@ -59,11 +59,13 @@ struct HeroInsightCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            EyebrowLabel("Today's insight")
+                .padding(.bottom, 10)
             Text(title)
-                .font(.system(size: 28, weight: .semibold))
+                .font(PulseFont.titleSemibold(28))
                 .foregroundStyle(PulseColors.textPrimary)
             Text(summary)
-                .font(.system(size: 15))
+                .font(PulseFont.body(15))
                 .lineSpacing(4)
                 .foregroundStyle(PulseColors.textSecondary)
                 .padding(.top, 8)
@@ -73,14 +75,10 @@ struct HeroInsightCardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [PulseColors.accent.opacity(0.18), PulseColors.spo2.opacity(0.10)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
+        .background(PulseColors.card)
+        .clipShape(RoundedRectangle(cornerRadius: PulseRadius.xLarge, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: PulseRadius.xLarge, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
     }
 }
 
@@ -638,6 +636,317 @@ enum ActivityMeta {
         let m = Int(paceSecPerKm) / 60
         let s = Int(paceSecPerKm.rounded()) % 60
         return String(format: "%d:%02d /km", m, s)
+    }
+}
+
+// MARK: - Hero Card (black "just one thing" next-action)
+
+/// The canonical black hero card carrying a screen's single most-important next
+/// action. Matches the Home "JUST THIS ONE THING" block: solid ink fill (the
+/// monochrome `accent` token → #161616 light / white dark), inverse text, an
+/// uppercase eyebrow, a Newsreader title, optional support line, and up to two
+/// actions (filled = inverse-on-ink, quiet = outlined). Compose this instead of
+/// re-drawing a black RoundedRectangle per screen.
+struct HeroCard: View {
+    let eyebrow: String
+    let title: String
+    var support: String?
+    var primaryTitle: String?
+    var primaryAction: (() -> Void)?
+    var secondaryTitle: String?
+    var secondaryAction: (() -> Void)?
+    /// Optional SF Symbol shown in the eyebrow row (e.g. checkmark when done).
+    var eyebrowSymbol: String?
+    /// When true the eyebrow dot/symbol uses the success tint (e.g. completed).
+    var done: Bool = false
+
+    /// Ink background and its inverse foreground, derived from the accent token so
+    /// the card flips correctly in dark mode (white card, ink text).
+    private var ink: Color { PulseColors.accent }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                if let eyebrowSymbol {
+                    Image(systemName: eyebrowSymbol)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(done ? PulseColors.success : PulseColors.background)
+                        .accessibilityHidden(true)
+                } else {
+                    Circle()
+                        .fill(done ? PulseColors.success : PulseColors.background)
+                        .frame(width: 7, height: 7)
+                        .accessibilityHidden(true)
+                }
+                Text(eyebrow)
+                    .font(PulseFont.bodyMedium(11))
+                    .tracking(0.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(PulseColors.background.opacity(0.7))
+            }
+
+            Text(title)
+                .font(PulseFont.titleMedium(24))
+                .foregroundStyle(PulseColors.background)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let support {
+                Text(support)
+                    .font(PulseFont.body(14))
+                    .foregroundStyle(PulseColors.background.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if primaryTitle != nil || secondaryTitle != nil {
+                HStack(spacing: 8) {
+                    if let primaryTitle, let primaryAction {
+                        Button {
+                            HapticService.impact(.medium)
+                            primaryAction()
+                        } label: {
+                            Text(primaryTitle)
+                                .font(PulseFont.bodySemibold(15))
+                                .foregroundStyle(ink)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 46)
+                                .background(PulseColors.background)
+                                .clipShape(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if let secondaryTitle, let secondaryAction {
+                        Button {
+                            HapticService.impact(.light)
+                            secondaryAction()
+                        } label: {
+                            Text(secondaryTitle)
+                                .font(PulseFont.bodySemibold(15))
+                                .foregroundStyle(PulseColors.background)
+                                .padding(.horizontal, 18)
+                                .frame(height: 46)
+                                .background(
+                                    RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous)
+                                        .stroke(PulseColors.background.opacity(0.32), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(ink)
+        .clipShape(RoundedRectangle(cornerRadius: PulseRadius.xLarge, style: .continuous))
+    }
+}
+
+// MARK: - Icon Tile Row (leading SF-Symbol tile + title/subtitle + accessory)
+
+/// The canonical list row: an SF Symbol in a `fillSubtle` rounded tile, a title +
+/// optional subtitle, an optional trailing value, and a chevron when it drills in.
+/// Use inside a `PulseCard`; stack rows with `IconTileRow.divider` between them.
+struct IconTileRow: View {
+    let icon: String
+    let title: String
+    var subtitle: String?
+    var trailingText: String?
+    var showsChevron: Bool = true
+    var action: (() -> Void)?
+
+    private var rowContent: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(PulseColors.textPrimary)
+                .frame(width: 40, height: 40)
+                .background(PulseColors.fillSubtle)
+                .clipShape(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(PulseFont.bodySemibold(15))
+                    .foregroundStyle(PulseColors.textPrimary)
+                    .lineLimit(1)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(PulseFont.body(13))
+                        .foregroundStyle(PulseColors.textMuted)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let trailingText {
+                Text(trailingText)
+                    .font(PulseFont.bodyMedium(13))
+                    .monospacedDigit()
+                    .foregroundStyle(PulseColors.textSecondary)
+            }
+            if showsChevron && action != nil {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(PulseColors.textFaint)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.vertical, 12)
+        .frame(minHeight: PulseLayout.minTapTarget)
+        .contentShape(Rectangle())
+    }
+
+    var body: some View {
+        if let action {
+            Button {
+                HapticService.impact(.light)
+                action()
+            } label: { rowContent }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+        } else {
+            rowContent
+        }
+    }
+
+    /// Hairline divider to place between stacked rows inside a card.
+    static var divider: some View {
+        Rectangle().fill(PulseColors.borderHairline).frame(height: 1)
+    }
+}
+
+// MARK: - Segmented Control (one shared monochrome control)
+
+/// The single shared segmented control (Schedule/Protocol/Wellness, Category,
+/// Timing, etc.): gray `fillSubtle` track, white selected pill with a soft shadow,
+/// `PulseFont.bodySemibold`. Identical everywhere it appears. Generic over any
+/// `Hashable` whose label is provided by `title`.
+struct SegmentedControl<T: Hashable>: View {
+    @Binding var selection: T
+    let options: [T]
+    var title: (T) -> String
+    @Namespace private var ns
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(options, id: \.self) { option in
+                let isSelected = option == selection
+                Button {
+                    if !isSelected { HapticService.selection() }
+                    withAnimation(.snappy(duration: 0.25)) { selection = option }
+                } label: {
+                    Text(title(option))
+                        .font(PulseFont.bodySemibold(14))
+                        .foregroundStyle(isSelected ? PulseColors.textPrimary : PulseColors.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background {
+                            if isSelected {
+                                RoundedRectangle(cornerRadius: PulseRadius.small, style: .continuous)
+                                    .fill(PulseColors.background)
+                                    .shadow(color: Color.black.opacity(0.06), radius: 2, y: 1)
+                                    .matchedGeometryEffect(id: "seg", in: ns)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+        .padding(4)
+        .background(PulseColors.fillSubtle)
+        .clipShape(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+    }
+}
+
+// MARK: - Empty State Card (designed first-action invitation)
+
+/// A designed empty state on the canonical card: a neutral icon tile, a Newsreader
+/// title, a body line, and an optional black call-to-action. Use on any data
+/// surface that can be empty instead of a bare "No data" label.
+struct EmptyStateCard: View {
+    let icon: String
+    let title: String
+    let message: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        PulseCard(padding: 24, radius: PulseRadius.large) {
+            VStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .regular))
+                    .foregroundStyle(PulseColors.textMuted)
+                    .frame(width: 56, height: 56)
+                    .background(PulseColors.fillSubtle)
+                    .clipShape(RoundedRectangle(cornerRadius: PulseRadius.large, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(spacing: 6) {
+                    Text(title)
+                        .font(PulseFont.titleMedium(20))
+                        .foregroundStyle(PulseColors.textPrimary)
+                        .multilineTextAlignment(.center)
+                    Text(message)
+                        .font(PulseFont.body(14))
+                        .foregroundStyle(PulseColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                }
+                if let actionTitle, let action {
+                    Button {
+                        HapticService.impact(.light)
+                        action()
+                    } label: {
+                        Text(actionTitle)
+                            .font(PulseFont.bodySemibold(15))
+                            .foregroundStyle(PulseColors.background)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(PulseColors.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+// MARK: - Shared component previews
+
+#Preview("Shared components") {
+    ScrollView {
+        VStack(spacing: 16) {
+            HeroCard(
+                eyebrow: "Just this one thing",
+                title: "Take your evening stack",
+                support: "2 items · 2 minutes · then you can wind down",
+                primaryTitle: "Start", primaryAction: {},
+                secondaryTitle: "Not now", secondaryAction: {}
+            )
+            PulseCard {
+                VStack(spacing: 0) {
+                    IconTileRow(icon: "pills.fill", title: "BPC-157 · Morning stack", subtitle: "Medication & supplements", trailingText: "7:30a", action: {})
+                    IconTileRow.divider
+                    IconTileRow(icon: "moon.fill", title: "Sleep", subtitle: "Last night's score", action: {})
+                }
+            }
+            SegmentedControlPreview()
+            EmptyStateCard(icon: "tray", title: "Nothing here yet", message: "Log your first entry to see it appear here.", actionTitle: "Add entry", action: {})
+        }
+        .padding(16)
+    }
+    .background(PulseColors.canvas)
+}
+
+private struct SegmentedControlPreview: View {
+    @State private var sel = "Schedule"
+    var body: some View {
+        SegmentedControl(selection: $sel, options: ["Schedule", "Protocol", "Wellness"]) { $0 }
     }
 }
 

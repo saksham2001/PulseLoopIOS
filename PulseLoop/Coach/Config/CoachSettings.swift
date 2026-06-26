@@ -104,12 +104,12 @@ enum CoachPersonality: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var emoji: String {
+    var iconSystemName: String {
         switch self {
-        case .friend: return "💙"
-        case .dataNerd: return "🧠"
-        case .guardian: return "🛡️"
-        case .commander: return "🔥"
+        case .friend: return "heart.fill"
+        case .dataNerd: return "brain.head.profile"
+        case .guardian: return "shield.fill"
+        case .commander: return "flame.fill"
         }
     }
 

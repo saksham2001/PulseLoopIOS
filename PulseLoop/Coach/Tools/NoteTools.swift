@@ -369,7 +369,7 @@ enum NoteTools {
                 if let existing = cols.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
                     note.collectionId = existing.id
                 } else {
-                    let newCol = Collection(name: name, emoji: "📁", order: (cols.map(\.order).max() ?? -1) + 1)
+                    let newCol = Collection(name: name, emoji: "folder", order: (cols.map(\.order).max() ?? -1) + 1)
                     ctx.modelContext.insert(newCol)
                     note.collectionId = newCol.id
                 }

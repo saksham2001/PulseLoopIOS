@@ -55,8 +55,9 @@ struct ProtocolDetailView: View {
 
     private var headerSection: some View {
         HStack(spacing: 14) {
-            Text(medication.emoji)
-                .font(.system(size: 32))
+            Image(systemName: medication.emoji.isEmpty ? "pills.fill" : medication.emoji)
+                .font(.system(size: 24))
+                .foregroundStyle(categoryColor)
                 .frame(width: 56, height: 56)
                 .background(categoryColor.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

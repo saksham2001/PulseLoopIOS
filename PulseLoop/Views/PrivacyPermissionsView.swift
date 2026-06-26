@@ -5,6 +5,8 @@ struct PrivacyPermissionsView: View {
     @State private var calendarOn = true
     @State private var messagesOn = false
     @State private var bankOn = false
+    @State private var showDataSettings = false
+    @State private var showActivityLog = false
 
     var body: some View {
         ScrollView {
@@ -25,6 +27,21 @@ struct PrivacyPermissionsView: View {
         .background(PulseColors.background)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Privacy")
+        .sheet(isPresented: $showDataSettings) {
+            NavigationStack {
+                ScrollView { PrivacyDataSettingsSection().padding(16) }
+                    .background(PulseColors.canvas)
+                    .navigationTitle("Your data")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { showDataSettings = false } } }
+            }
+        }
+        .sheet(isPresented: $showActivityLog) {
+            NavigationStack {
+                PrivacyActivityLogView()
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { showActivityLog = false } } }
+            }
+        }
     }
 
     private var header: some View {
@@ -49,10 +66,10 @@ struct PrivacyPermissionsView: View {
                 .tracking(0.8)
 
             VStack(spacing: 8) {
-                PermissionRow(icon: "✉︎", name: "Gmail", detail: "Receipts, bills, invites only", isOn: $gmailOn)
-                PermissionRow(icon: "📅", name: "Calendar", detail: "Events & invitations", isOn: $calendarOn)
-                PermissionRow(icon: "💬", name: "Messages", detail: "Limited · codes & deliveries", isOn: $messagesOn)
-                PermissionRow(icon: "🏦", name: "Bank", detail: "Read-only · subscriptions", isOn: $bankOn)
+                PermissionRow(icon: "envelope.fill", name: "Gmail", detail: "Receipts, bills, invites only", isOn: $gmailOn)
+                PermissionRow(icon: "calendar", name: "Calendar", detail: "Events & invitations", isOn: $calendarOn)
+                PermissionRow(icon: "message.fill", name: "Messages", detail: "Limited · codes & deliveries", isOn: $messagesOn)
+                PermissionRow(icon: "building.columns.fill", name: "Bank", detail: "Read-only · subscriptions", isOn: $bankOn)
             }
         }
     }
@@ -74,7 +91,7 @@ struct PrivacyPermissionsView: View {
 
     private var actionsSection: some View {
         VStack(spacing: 0) {
-            Button { } label: {
+            Button { showActivityLog = true } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "list.bullet.rectangle")
                         .font(.system(size: 14))
@@ -94,7 +111,7 @@ struct PrivacyPermissionsView: View {
             }
             .buttonStyle(.plain)
 
-            Button { } label: {
+            Button { showDataSettings = true } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "arrow.down.doc")
                         .font(.system(size: 14))
@@ -122,8 +139,9 @@ struct PermissionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(icon)
-                .font(.system(size: 14))
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(PulseColors.textPrimary)
                 .frame(width: 30, height: 30)
                 .background(PulseColors.fillSubtle)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -164,5 +182,57 @@ struct AIPermissionRow: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(PulseColors.borderHairline, lineWidth: 1)
         }
+    }
+}
+
+// MARK: - Activity Log
+
+/// On-device privacy activity log. PulseLoop keeps data on-device and asks before
+/// it acts, so this surface lists what the assistant is currently allowed to read
+/// and do. Until a persisted action ledger ships, recent actions show an honest
+/// empty state rather than a fabricated history.
+struct PrivacyActivityLogView: View {
+    private let allowed: [(String, String)] = [
+        ("Read Gmail receipts & invites", "envelope.fill"),
+        ("Read Calendar events", "calendar"),
+        ("Draft replies (with approval)", "square.and.pencil"),
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Activity log")
+                        .font(PulseFont.title(28))
+                        .foregroundStyle(PulseColors.textPrimary)
+                    Text("Everything PulseLoop reads or does is on-device. Nothing leaves your phone without an explicit action.")
+                        .font(PulseFont.body(14))
+                        .foregroundStyle(PulseColors.textSecondary)
+                        .lineSpacing(3)
+                }
+
+                EyebrowLabel("CURRENTLY ALLOWED")
+                PulseCard {
+                    VStack(spacing: 0) {
+                        ForEach(Array(allowed.enumerated()), id: \.offset) { index, item in
+                            IconTileRow(icon: item.1, title: item.0, showsChevron: false)
+                            if index < allowed.count - 1 { IconTileRow.divider }
+                        }
+                    }
+                }
+
+                EyebrowLabel("RECENT ACTIONS")
+                EmptyStateCard(
+                    icon: "list.bullet.rectangle",
+                    title: "No actions yet",
+                    message: "When the assistant reads a source or takes an action on your behalf, it will appear here so you can review it."
+                )
+            }
+            .padding(16)
+            .padding(.bottom, 40)
+        }
+        .background(PulseColors.canvas)
+        .navigationTitle("Activity log")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

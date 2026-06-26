@@ -127,7 +127,7 @@ enum OpenFoodFactsService {
 
     static func toSupplementInfo(_ product: OpenFoodFactsProduct) -> SupplementInfo {
         let category = isLikelySupplement(product) ? "supplement" : "food"
-        let emoji = isLikelySupplement(product) ? "💊" : "🍽️"
+        let emoji = isLikelySupplement(product) ? "pills.fill" : "fork.knife"
 
         let benefit: String
         if let ingredients = product.ingredients, !ingredients.isEmpty {

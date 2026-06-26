@@ -65,7 +65,7 @@ enum SupplementKnowledge {
     static let inSourceDatabase: [SupplementInfo] = [
         SupplementInfo(
             name: "Vitamin D3", aliases: ["d3", "vitamin d", "cholecalciferol"],
-            category: "vitamin", defaultDose: "2,000 IU", emoji: "☀️", timing: "AM",
+            category: "vitamin", defaultDose: "2,000 IU", emoji: "sun.max.fill", timing: "AM",
             benefit: "Supports bone health, immune function, and mood regulation",
             mechanism: "Fat-soluble secosteroid that regulates calcium absorption and immune cell activity",
             bestTimeReason: "Take with a fat-containing meal for 50% better absorption",
@@ -318,7 +318,7 @@ enum SupplementKnowledge {
         ),
         SupplementInfo(
             name: "CoQ10", aliases: ["coenzyme q10", "ubiquinol", "coq10"],
-            category: "supplement", defaultDose: "200 mg", emoji: "❤️", timing: "AM",
+            category: "supplement", defaultDose: "200 mg", emoji: "heart.fill", timing: "AM",
             benefit: "Cellular energy, heart health, antioxidant, statin side-effect mitigation",
             mechanism: "Essential electron carrier in mitochondrial ATP production (Complex III)",
             bestTimeReason: "With a fat-containing meal for absorption. AM for energy benefits",

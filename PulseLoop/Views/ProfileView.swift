@@ -370,6 +370,7 @@ struct EditProfileView: View {
 // MARK: - SharedSpaceView
 
 struct SharedSpaceView: View {
+    @State private var showInvite = false
     @State private var tasks: [SharedTask] = [
         .init(title: "Grocery run", done: false),
         .init(title: "Book flights", done: true),
@@ -389,7 +390,7 @@ struct SharedSpaceView: View {
                 sharedTasksSection
                 sharedNotesSection
                 expenseSplitSection
-                Button { } label: {
+                Button { showInvite = true } label: {
                     Label("Invite Members", systemImage: "person.badge.plus")
                         .font(PulseFont.bodySemibold(15)).foregroundStyle(PulseColors.accent)
                         .frame(maxWidth: .infinity).padding(.vertical, 12)
@@ -401,6 +402,9 @@ struct SharedSpaceView: View {
         }
         .background(PulseColors.canvas)
         .navigationTitle("Shared Space")
+        .sheet(isPresented: $showInvite) {
+            ShareSheet(items: ["Join my shared space on PulseLoop. https://pulseloop.app/invite"])
+        }
     }
 
     private var spaceHeader: some View {

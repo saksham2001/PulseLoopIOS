@@ -75,8 +75,18 @@ struct VitalsView: View {
                 .accessibilityLabel("Blood oxygen")
                 .accessibilityValue("\(TodayInsights.averageLabel(spo2Samples, summary.latestSpO2?.value)) percent average")
 
-                comingSoonCard(title: "HRV", message: "HRV decoding coming soon")
-                comingSoonCard(title: "Skin temperature", message: "Temperature decoding coming soon")
+                upcomingMetricCard(
+                    title: "HRV",
+                    icon: "waveform.path.ecg",
+                    color: PulseColors.heartRate,
+                    message: "Heart-rate variability needs continuous beat-to-beat timing. We're decoding it from your ring's raw signal and will surface it here automatically."
+                )
+                upcomingMetricCard(
+                    title: "Skin temperature",
+                    icon: "thermometer.medium",
+                    color: PulseColors.calories,
+                    message: "Nightly skin-temperature trends are being calibrated against your baseline. They'll appear here once there's enough overnight data."
+                )
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 96)
@@ -95,16 +105,29 @@ struct VitalsView: View {
         return "\(status.uppercased()) · \(confidence.uppercased()) CONFIDENCE"
     }
 
-    private func comingSoonCard(title: String, message: String) -> some View {
-        VStack(spacing: 4) {
-            Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(PulseColors.textPrimary)
-            Text(message).font(.system(size: 12)).foregroundStyle(PulseColors.textMuted)
+    private func upcomingMetricCard(title: String, icon: String, color: Color, message: String) -> some View {
+        DetailCard(title: title, color: color) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(PulseColors.textMuted)
+                    .frame(width: 40, height: 40)
+                    .background(PulseColors.fillSubtle)
+                    .clipShape(RoundedRectangle(cornerRadius: PulseRadius.medium, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 8) {
+                    StatusChip(label: "Calibrating", style: .neutral, icon: "clock")
+                    Text(message)
+                        .font(PulseFont.body(13))
+                        .foregroundStyle(PulseColors.textSecondary)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.top, 12)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-        .background(PulseColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), calibrating. \(message)")
     }
 }
 

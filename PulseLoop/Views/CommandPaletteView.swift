@@ -120,8 +120,8 @@ struct CommandPaletteView: View {
             }
             Spacer()
             Button { showPersonalityPicker = true } label: {
-                Text(CoachSettingsStore.shared.settings.personality.emoji)
-                    .font(.system(size: 18))
+                Image(systemName: CoachSettingsStore.shared.settings.personality.iconSystemName)
+                    .font(.system(size: 16, weight: .semibold))
                     .frame(width: 30, height: 30)
             }
         }
@@ -252,7 +252,7 @@ struct CommandPaletteView: View {
 
     private func miniParsedRow(_ item: ParsedItem) -> some View {
         HStack(spacing: 8) {
-            Text(item.emoji)
+            Image(systemName: item.emoji.isEmpty ? "circle.fill" : item.emoji)
                 .font(.system(size: 14))
                 .frame(width: 28, height: 28)
                 .background(Color.white.opacity(0.15))
@@ -595,7 +595,7 @@ struct CommandPaletteView: View {
                 items.append(ParsedItem(
                     title: "\(medInfo.name)  -  \(medInfo.defaultDose)",
                     category: medInfo.category.capitalized,
-                    emoji: "💊",
+                    emoji: "pills.fill",
                     benefit: medInfo.benefit,
                     knowledgeMatch: nil
                 ))
@@ -619,7 +619,7 @@ struct CommandPaletteView: View {
                 items.append(ParsedItem(
                     title: "\(peptideInfo.name)  -  \(peptideInfo.defaultDose)",
                     category: "Peptide",
-                    emoji: "🧬",
+                    emoji: "syringe.fill",
                     benefit: peptideInfo.benefit,
                     knowledgeMatch: nil
                 ))
@@ -974,8 +974,8 @@ struct CommandPaletteView: View {
                         CoachSettingsStore.shared.settings.hasCompletedOnboarding = true
                     } label: {
                         HStack(spacing: 12) {
-                            Text(p.emoji)
-                                .font(.system(size: 22))
+                            Image(systemName: p.iconSystemName)
+                                .font(.system(size: 18, weight: .semibold))
                                 .frame(width: 40, height: 40)
                                 .background(PulseColors.fillSubtle)
                                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
