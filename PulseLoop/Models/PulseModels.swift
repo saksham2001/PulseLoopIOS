@@ -180,6 +180,9 @@ final class ActivityDaily {
 
 @Model
 final class Measurement {
+    // Indexes for the hot read paths: time-window scans (timestamp), per-kind windows + latest
+    // value (kindRaw, timestamp), and demo detection (sourceRaw). Additive, non-destructive.
+    #Index<Measurement>([\.timestamp], [\.kindRaw, \.timestamp], [\.sourceRaw])
     @Attribute(.unique) var id: UUID
     var kindRaw: String
     var value: Double

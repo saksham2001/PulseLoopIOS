@@ -95,6 +95,9 @@ struct PulseLoopApp: App {
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, phase in
+            // Flush any batched-but-unsaved ring writes before the app suspends so a mid-sync
+            // batch isn't lost.
+            if phase != .active { persistence.flush() }
             guard phase == .active else { return }
             // Both calls are no-ops when the AI Coach master switch is off — the
             // scheduler gates on `coachMasterEnabled`, and `runDueSlot` short

@@ -9,14 +9,22 @@ enum MetricsService {
     static func buildTodaySummary(context: ModelContext) -> TodaySummary {
         let calendar = Calendar.current
         let activityRows = MetricsRepository.activityRows(context: context)
-        let measurements = MetricsRepository.measurements(context: context)
         let device = DeviceRepository.current(context: context)
-        let isDemo = activityRows.contains { $0.source == "mock" } || measurements.contains { $0.sourceRaw == MeasurementSource.mock.rawValue }
+        // Demo detection via cheap predicated probes (no full-table scan). Matches the previous
+        // "any mock activity OR any mock measurement" semantics.
+        let isDemo = activityRows.contains { $0.source == "mock" } || MetricsRepository.hasMockMeasurement(context: context)
         let today = activityRows.sorted { $0.date < $1.date }.last
         let anchorDate = today?.date ?? calendar.startOfDay(for: Date())
         let alignedRows = alignedWeekActivity(rows: activityRows, anchor: isDemo ? anchorDate : Date())
-        let hrRows = measurements.filter { $0.kind == .heartRate }
-        let spo2Rows = measurements.filter { $0.kind == .spo2 }
+        // 24h HR/SpO₂ samples come from windowed DB queries (demo keeps full history, matching the
+        // old `includeAll`). `samplesSinceCutoff` re-applies the cutoff so semantics are identical.
+        let cutoff24h = calendar.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
+        let hrRows = isDemo
+            ? MetricsRepository.measurementsAll(kind: .heartRate, context: context)
+            : MetricsRepository.measurements(kind: .heartRate, start: cutoff24h, end: Date(), context: context)
+        let spo2Rows = isDemo
+            ? MetricsRepository.measurementsAll(kind: .spo2, context: context)
+            : MetricsRepository.measurements(kind: .spo2, start: cutoff24h, end: Date(), context: context)
         let hrSamples = samplesSinceCutoff(rows: hrRows, range: .twentyFourHours, includeAll: isDemo)
         let spo2Samples = samplesSinceCutoff(rows: spo2Rows, range: .twentyFourHours, includeAll: isDemo)
         // Display copies for the Today sparklines respect the user's graph-resolution setting (the raw
@@ -24,9 +32,14 @@ enum MetricsService {
         let buckets24h = MetricPrefsStore.shared.settings.resolution.targetBuckets(for: .twentyFourHours)
         let hrSamplesDisplay = MetricDownsampler.bucketAverage(hrSamples, targetBuckets: buckets24h)
         let spo2SamplesDisplay = MetricDownsampler.bucketAverage(spo2Samples, targetBuckets: buckets24h)
-        let latestHR = hrRows.last
-        let latestSpO2 = spo2Rows.last
-        let calibration = calibrationState(device: device, activityRows: activityRows, measurements: measurements, isDemo: isDemo)
+        // Latest values are the newest reading of each kind regardless of age (the old code took
+        // `.last` of the FULL kind history, not the 24h window) — fetch them independently so a
+        // last reading older than 24h still surfaces.
+        // Flatten the latest live readings to value snapshots immediately so nothing downstream
+        // (or the cached TodaySummary) holds a live SwiftData object.
+        let latestHR = LatestReading(MetricsRepository.latestMeasurement(kind: .heartRate, context: context))
+        let latestSpO2 = LatestReading(MetricsRepository.latestMeasurement(kind: .spo2, context: context))
+        let calibration = calibrationState(device: device, activityRows: activityRows, isDemo: isDemo, context: context)
         let hrFreshness = freshness(lastUpdatedAt: latestHR?.timestamp, isDemo: isDemo)
         let spo2Freshness = freshness(lastUpdatedAt: latestSpO2?.timestamp, isDemo: isDemo)
         let sleep = SleepService.latestSleep(context: context)
@@ -68,14 +81,6 @@ enum MetricsService {
             batteryPercent: device?.batteryPercent ?? 0,
             deviceState: device?.state ?? .idle,
             trends: trends,
-            timeline: buildTimeline(
-                device: device,
-                today: today,
-                hrSamples: hrSamples,
-                spo2Samples: spo2Samples,
-                sleep: sleep,
-                context: context
-            ),
             metricStates: metricStates,
             calibration: calibration,
             goals: goals,
@@ -182,9 +187,29 @@ enum MetricsService {
     }
     
     private static func rangeSamples(kind: MeasurementKind, range: MetricRange, context: ModelContext) -> [MetricSample] {
-        let rows = MetricsRepository.measurements(kind: kind, context: context)
-        let isDemo = rows.contains { $0.sourceRaw == MeasurementSource.mock.rawValue }
+        // Demo mode keeps full history (the old `includeAll`); otherwise fetch only the range window
+        // from the DB. Per-kind demo detection mirrors the old `rows.contains { mock }` (which only
+        // saw this kind's rows) so mixed real+demo databases behave identically.
+        let isDemo = MetricsRepository.hasMockMeasurement(kind: kind, context: context)
+        let rows: [Measurement]
+        if isDemo {
+            rows = MetricsRepository.measurementsAll(kind: kind, context: context)
+        } else {
+            rows = MetricsRepository.measurements(kind: kind, start: cutoff(for: range), end: Date(), limit: 5000, context: context)
+        }
         return samplesSinceCutoff(rows: rows, range: range, includeAll: isDemo)
+    }
+
+    /// Start date for a metric range window (mirrors `samplesSinceCutoff`'s non-demo cutoff so the
+    /// windowed fetch returns exactly the rows that filter would have kept).
+    private static func cutoff(for range: MetricRange) -> Date {
+        let cal = Calendar.current
+        switch range {
+        case .twentyFourHours: return cal.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
+        case .sevenDays:       return cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        case .thirtyDays:      return cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        case .twelveMonths:    return cal.date(byAdding: .day, value: -365, to: Date()) ?? Date()
+        }
     }
     
     private static func activitySamples(metric: MetricKey, range: MetricRange, context: ModelContext) -> [MetricSample] {
@@ -268,7 +293,7 @@ enum MetricsService {
         }
     }
     
-    private static func calibrationState(device: Device?, activityRows: [ActivityDaily], measurements: [Measurement], isDemo: Bool) -> CalibrationState {
+    private static func calibrationState(device: Device?, activityRows: [ActivityDaily], isDemo: Bool, context: ModelContext) -> CalibrationState {
         if isDemo {
             return CalibrationState(isCalibrating: false, day: calibrationDays, totalDays: calibrationDays, startedAt: nil, reason: "Demo data active")
         }
@@ -276,7 +301,11 @@ enum MetricsService {
         if let lastConnected = device?.lastConnectedAt { candidates.append(lastConnected) }
         if let lastSync = device?.lastSyncAt { candidates.append(lastSync) }
         candidates.append(contentsOf: activityRows.compactMap(\.syncedAt))
-        candidates.append(contentsOf: measurements.map(\.timestamp))
+        // The earliest measurement timestamp anchors "day 1" — fetched as a single oldest row
+        // instead of mapping the whole table (semantics: still the global min measurement timestamp).
+        if let oldestMeasurement = MetricsRepository.oldestMeasurementTimestamp(context: context) {
+            candidates.append(oldestMeasurement)
+        }
         let started = candidates.min()
         let day: Int
         if let started {
@@ -313,8 +342,8 @@ enum MetricsService {
     private struct MetricStateInputs {
         let today: ActivityDaily?
         let sleep: SleepSummary?
-        let latestHR: Measurement?
-        let latestSpO2: Measurement?
+        let latestHR: LatestReading?
+        let latestSpO2: LatestReading?
         let hrFreshness: DataFreshness
         let spo2Freshness: DataFreshness
         let activityRows: [ActivityDaily]
@@ -428,7 +457,7 @@ enum MetricsService {
         )
     }
     
-    private static func confidence(from measurement: Measurement?) -> MetricConfidence {
+    private static func confidence(from measurement: LatestReading?) -> MetricConfidence {
         switch measurement?.confidenceRaw {
         case DecodeConfidence.known.rawValue:
             return .high
@@ -466,37 +495,6 @@ enum MetricsService {
         return GoalsSummary(stepsDaily: 8000, activeMinutesDaily: 60, sleepHours: 7.5, exerciseDaysWeekly: 4)
     }
     
-    private static func buildTimeline(
-        device: Device?,
-        today: ActivityDaily?,
-        hrSamples: [MetricSample],
-        spo2Samples: [MetricSample],
-        sleep: SleepSummary?,
-        context: ModelContext
-    ) -> [TimelineEvent] {
-        var events: [TimelineEvent] = []
-        if let lastSyncAt = device?.lastSyncAt {
-            events.append(TimelineEvent(title: "Sync complete", detail: "Ring data updated", timestamp: lastSyncAt, metric: "sync"))
-        }
-        if let last = hrSamples.last {
-            events.append(TimelineEvent(title: "Heart rate", detail: "\(Int(last.value)) bpm", timestamp: last.timestamp, metric: "hr"))
-        }
-        if let last = spo2Samples.last {
-            events.append(TimelineEvent(title: "SpO2", detail: "\(Int(last.value)) %", timestamp: last.timestamp, metric: "spo2"))
-        }
-        if let today, today.activeMinutes > 0 {
-            let timestamp = today.syncedAt ?? Calendar.current.date(bySettingHour: 14, minute: 25, second: 0, of: today.date) ?? today.date
-            events.append(TimelineEvent(title: "Activity sync", detail: "\(min(today.activeMinutes, 22)) min active", timestamp: timestamp, metric: "activity"))
-        }
-        if let sleep {
-            events.append(TimelineEvent(title: "Sleep synced", detail: "\(sleep.session.totalMinutes / 60)h \(sleep.session.totalMinutes % 60)m", timestamp: sleep.session.endAt, metric: "sleep"))
-        }
-        let selfies = DebugRepository.queryPackets(filter: DebugPacketFilter(commandId: 0x06), context: context).prefix(3)
-        for packet in selfies {
-            events.append(TimelineEvent(title: "Gesture event", detail: "Decoded packet", timestamp: packet.timestamp, metric: "debug"))
-        }
-        return events.sorted { $0.timestamp > $1.timestamp }.prefix(8).map { $0 }
-    }
 }
 
 @MainActor
@@ -840,12 +838,10 @@ enum ActivityService {
     
     private static func backfillSamples(for session: ActivitySession, endedAt: Date, context: ModelContext) {
         let linked = Set(ActivityRepository.samples(sessionId: session.id, context: context).compactMap(\.measurementId))
-        let rows = MetricsRepository.measurements(context: context).filter { row in
-            (row.kind == .heartRate || row.kind == .spo2)
-            && row.timestamp >= session.startedAt
-            && row.timestamp <= endedAt
-            && !linked.contains(row.id)
-        }
+        // Windowed per-kind queries over the session's time span instead of scanning the whole table.
+        let hr = MetricsRepository.measurements(kind: .heartRate, start: session.startedAt, end: endedAt, limit: 10000, context: context)
+        let spo2 = MetricsRepository.measurements(kind: .spo2, start: session.startedAt, end: endedAt, limit: 10000, context: context)
+        let rows = (hr + spo2).filter { !linked.contains($0.id) }
         for row in rows {
             context.insert(ActivitySample(
                 sessionId: session.id,

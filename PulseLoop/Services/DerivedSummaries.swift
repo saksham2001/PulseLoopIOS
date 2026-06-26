@@ -107,14 +107,6 @@ struct TrendsSummary {
     let spo2Samples24h: [MetricSample]
 }
 
-struct TimelineEvent: Identifiable {
-    let id = UUID()
-    let title: String
-    let detail: String
-    let timestamp: Date
-    let metric: String?
-}
-
 struct SleepSummary {
     let session: SleepSession
     let lightMinutes: Int
@@ -185,6 +177,30 @@ struct ActivityDailyUpdate {
     }
 }
 
+/// A flattened snapshot of one "latest" measurement reading. Holds plain values (no live
+/// SwiftData object) so a `TodaySummary` can be cached and passed around safely.
+struct LatestReading: Equatable {
+    var value: Double
+    var timestamp: Date
+    var sourceRaw: String
+    var confidenceRaw: String
+
+    init(value: Double, timestamp: Date, sourceRaw: String, confidenceRaw: String) {
+        self.value = value
+        self.timestamp = timestamp
+        self.sourceRaw = sourceRaw
+        self.confidenceRaw = confidenceRaw
+    }
+
+    init?(_ measurement: Measurement?) {
+        guard let m = measurement else { return nil }
+        self.value = m.value
+        self.timestamp = m.timestamp
+        self.sourceRaw = m.sourceRaw
+        self.confidenceRaw = m.confidenceRaw
+    }
+}
+
 struct TodaySummary {
     var date: Date
     var steps: Int?
@@ -192,15 +208,14 @@ struct TodaySummary {
     var distanceMeters: Double?
     var activeMinutes: Int?
     var activeMinutesSource: String
-    var latestHeartRate: Measurement?
-    var latestSpO2: Measurement?
+    var latestHeartRate: LatestReading?
+    var latestSpO2: LatestReading?
     var restingHeartRateEstimate: Double?
     var peakHeartRateToday: Double?
     var sleep: SleepSummary?
     var batteryPercent: Int?
     var deviceState: RingConnectionState
     var trends: TrendsSummary
-    var timeline: [TimelineEvent]
     var metricStates: [MetricKey: MetricState]
     var calibration: CalibrationState
     var goals: GoalsSummary

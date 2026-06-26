@@ -107,6 +107,8 @@ struct RootAppView: View {
 
 struct MainTabView: View {
     @Binding var path: NavigationPath
+    @Environment(RingSyncCoordinator.self) private var coordinator
+    @Environment(\.modelContext) private var modelContext
     @State private var selected: MainTab
     @State private var nav = CoachNavigation.shared
     @State private var coachStore = CoachSettingsStore.shared
@@ -130,10 +132,16 @@ struct MainTabView: View {
     var body: some View {
         VStack(spacing: 0) {
             AppHeader(path: $path)
+            // Thin sync-progress accent directly under the greeting; only present while the ring
+            // is actively syncing so the user knows wearable data is still streaming in.
+            if coordinator.isSyncing {
+                SyncProgressBar()
+                    .transition(.opacity)
+            }
             ZStack(alignment: .bottom) {
                 TabView(selection: $selected) {
-                    TodayView(path: $path, selectedTab: $selected).tag(MainTab.today)
-                    VitalsView().tag(MainTab.vitals)
+                    TodayView(path: $path, selectedTab: $selected, isActive: selected == .today).tag(MainTab.today)
+                    VitalsView(isActive: selected == .vitals).tag(MainTab.vitals)
                     ActivityView(path: $path).tag(MainTab.activity)
                     SleepView().tag(MainTab.sleep)
                     if coachEnabled {
@@ -149,6 +157,7 @@ struct MainTabView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .onChange(of: selected) { _, _ in UIApplication.shared.endEditing() }
         }
+        .animation(.easeInOut(duration: 0.25), value: coordinator.isSyncing)
         .onChange(of: nav.requestedConversationId) { _, id in
             if id != nil && coachEnabled { selected = .coach }  // CoachView opens the thread + resets the flag
         }

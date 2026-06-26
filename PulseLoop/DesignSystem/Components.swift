@@ -655,3 +655,57 @@ struct ActivityWorkoutRow: View {
         return "\(m)m"
     }
 }
+
+// MARK: - Sync progress bar
+
+/// A thin, full-width indeterminate progress bar shown under the app header while the ring is
+/// syncing. We only have stage labels (not a percentage), so this is indeterminate: an accent
+/// segment sweeps left→right over a recessed track. Under Reduce Motion it degrades to a steady
+/// pulsing full-width fill (no horizontal travel). Visuals use the existing `PulseColors` tokens
+/// and the `ConnectionStatusPill` animation idiom.
+struct SyncProgressBar: View {
+    /// Bar thickness in points — deliberately thin so it reads as a status accent, not a control.
+    var height: CGFloat = 3
+    /// Fraction of the track width the moving segment occupies.
+    private let segmentFraction: CGFloat = 0.4
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animate = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let trackWidth = geo.size.width
+            let segmentWidth = trackWidth * segmentFraction
+
+            ZStack(alignment: .leading) {
+                Rectangle().fill(PulseColors.elevated)
+
+                if reduceMotion {
+                    // No travel — a gentle opacity pulse on a full-width fill.
+                    Rectangle()
+                        .fill(PulseColors.accent)
+                        .opacity(animate ? 0.55 : 1.0)
+                } else {
+                    Capsule()
+                        .fill(PulseColors.accent)
+                        .frame(width: segmentWidth)
+                        // Sweep from just off the left edge to just off the right edge.
+                        .offset(x: animate ? (trackWidth - segmentWidth) : 0)
+                }
+            }
+            .frame(height: height)
+            .clipped()
+        }
+        .frame(height: height)
+        .onAppear {
+            if reduceMotion {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { animate = true }
+            } else {
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { animate = true }
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Syncing")
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+}

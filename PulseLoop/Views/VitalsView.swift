@@ -2,22 +2,33 @@ import SwiftUI
 import SwiftData
 
 struct VitalsView: View {
+    /// Whether the Vitals tab is the one on screen. The `.page` TabView keeps adjacent tabs alive, so
+    /// we gate expensive rebuilds on visibility — an off-screen Vitals must not rebuild on every sync.
+    let isActive: Bool
     @Environment(\.modelContext) private var modelContext
     @Environment(RingSyncCoordinator.self) private var coordinator
     @Query private var profiles: [UserProfile]
     @State private var measuring: MeasurementSheet.Kind?
+    @State private var dataChange = PulseDataChange.shared
+    /// Owns the prepared vitals state. Created lazily in `.task` (never in `body`) so a `body`
+    /// re-render never triggers DB work — it just reads the already-prepared store.
+    @State private var store: VitalsStore?
 
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
-        let summary = MetricsService.buildTodaySummary(context: modelContext)
-        let hrSamples = MetricsService.metricRange(metric: .heartRate, range: .twentyFourHours, context: modelContext)
-        let spo2Samples = MetricsService.metricRange(metric: .spo2, range: .twentyFourHours, context: modelContext)
-        let stressSamples = MetricsService.metricRange(metric: .stress, range: .twentyFourHours, context: modelContext)
-        let hrvSamples = MetricsService.metricRange(metric: .hrv, range: .twentyFourHours, context: modelContext)
-        let tempSamples = MetricsService.metricRange(metric: .temperature, range: .twentyFourHours, context: modelContext)
+        guard let activeStore = store else {
+            // One pre-`.task` frame before the store is built: themed background, zero DB work.
+            return AnyView(PulseColors.background.ignoresSafeArea().task { ensureStore() })
+        }
+        let summary = activeStore.summary
+        let hrSamples = activeStore.hrSamples
+        let spo2Samples = activeStore.spo2Samples
+        let stressSamples = activeStore.stressSamples
+        let hrvSamples = activeStore.hrvSamples
+        let tempSamples = activeStore.tempSamples
 
-        ScrollView {
+        return AnyView(ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Vitals").font(.system(size: 26, weight: .semibold)).foregroundStyle(PulseColors.textPrimary)
@@ -26,7 +37,7 @@ struct VitalsView: View {
 
                 // On-demand measurement buttons are capability-gated: a ring that can't do an instant
                 // reading (e.g. Colmi has no spot SpO2) simply doesn't show that button.
-                let caps = MetricsService.deviceCapabilities(modelContext)
+                let caps = activeStore.capabilities
                 if caps.contains(.manualHeartRate) || caps.contains(.manualSpo2) {
                     HStack(spacing: 8) {
                         if caps.contains(.manualHeartRate) {
@@ -38,7 +49,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.heartRate, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.heartRate) {
                     DetailCard(title: "Heart rate", color: PulseColors.heartRate) {
                         let label = TodayInsights.hrRangeLabel(hrSamples, summary.latestHeartRate?.value)
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -66,7 +77,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.spo2, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.spo2) {
                     DetailCard(title: "Blood oxygen", color: PulseColors.spo2) {
                         let label = TodayInsights.averageLabel(spo2Samples, summary.latestSpO2?.value)
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -89,7 +100,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.stress, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.stress) {
                     DetailCard(title: "Stress", color: PulseColors.stress) {
                         if let latest = stressSamples.last?.value {
                             StressGaugeChart(value: latest).padding(.top, 12)
@@ -99,7 +110,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.hrv, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.hrv) {
                     DetailCard(title: "HRV", color: PulseColors.hrv) {
                         let label = hrvSamples.last.map { "\(Int($0.value))" } ?? "--"
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -117,7 +128,7 @@ struct VitalsView: View {
                     }
                 }
 
-                if MetricsService.isVisible(.temperature, context: modelContext) {
+                if activeStore.visibleMetrics.contains(.temperature) {
                     DetailCard(title: "Skin temperature", color: PulseColors.temperature) {
                         let formatted = tempSamples.last.map { UnitsFormatter.temperature(celsius: $0.value, units: units) }
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -140,9 +151,20 @@ struct VitalsView: View {
         }
         .background(PulseColors.background)
         .refreshable { await coordinator.pullToRefresh() }
+        .task { ensureStore(); if isActive { store?.refreshIfNeeded() } }
+        // Rebuild once per coalesced persistence flush — but only while this tab is on screen, and
+        // the store's signature check still makes it a no-op when nothing changed.
+        .onChange(of: dataChange.token) { _, _ in if isActive { store?.refreshIfNeeded() } }
+        // When returning to this tab, catch up on anything that changed while it was off-screen.
+        .onChange(of: isActive) { _, active in if active { store?.refreshIfNeeded() } }
         .sheet(item: Binding(get: { measuring.map(VitalsMeasuringItem.init) }, set: { measuring = $0?.kind })) { item in
             MeasurementSheet(kind: item.kind)
-        }
+        })
+    }
+
+    /// Build the store exactly once, off the `body` path.
+    private func ensureStore() {
+        if store == nil { store = VitalsStore(modelContext: modelContext) }
     }
 
     private func statusLine(_ summary: TodaySummary, _ key: MetricKey) -> String {

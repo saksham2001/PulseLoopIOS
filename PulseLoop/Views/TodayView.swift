@@ -9,21 +9,34 @@ struct TodayView: View {
     @Query private var profiles: [UserProfile]
     @Binding var path: NavigationPath
     @Binding var selectedTab: MainTab
+    /// Whether the Today tab is on screen (adjacent tabs stay alive under the `.page` TabView).
+    let isActive: Bool
     @State private var measuring: MeasurementSheet.Kind?
     @State private var coachStore = CoachSettingsStore.shared
+    @State private var dataChange = PulseDataChange.shared
+    /// Owns the prepared dashboard state. Created lazily in `.task` (never in `body`) so a `body`
+    /// re-render never triggers DB work — it just reads the already-prepared store.
+    @State private var store: TodayStore?
 
     private var summaryService: CoachSummaryService { CoachSummaryService(modelContext: modelContext) }
     private var coachEnabled: Bool { coachStore.settings.coachMasterEnabled }
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
+    /// Build the store exactly once, off the `body` path.
+    private func ensureStore() {
+        if store == nil { store = TodayStore(modelContext: modelContext) }
+    }
+
     var body: some View {
-        let summary = MetricsService.buildTodaySummary(context: modelContext)
-        let hero = TodayInsights.deriveHero(summary)
-        // On-demand measurement is capability-gated: a ring that can't do an instant reading (e.g.
-        // Colmi has no spot SpO2) makes that tile non-tappable — the tile still shows synced history.
-        let caps = MetricsService.deviceCapabilities(modelContext)
+        guard let activeStore = store else {
+            // One pre-`.task` frame before the store is built: themed background, zero DB work.
+            return AnyView(PulseColors.background.ignoresSafeArea().task { ensureStore() })
+        }
+        let summary = activeStore.summary
+        let hero = activeStore.hero
+        let caps = activeStore.capabilities
         let coachSummary = todaySummaries.first { $0.scopeKey == CoachDataAccess.localDateString(Date()) }
-        ScrollView {
+        return AnyView(ScrollView {
             VStack(spacing: 16) {
                 HeroInsightCardView(title: hero.title, summary: hero.summary, chips: hero.chips)
 
@@ -109,23 +122,6 @@ struct TodayView: View {
                     }
                     .buttonStyle(.plain)
                 }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("TODAY SO FAR")
-                        .font(.system(size: 11, weight: .medium)).tracking(1.4)
-                        .foregroundStyle(PulseColors.textMuted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if summary.timeline.isEmpty {
-                        InlineEmptyState(title: "No events yet", message: "Sync your ring to see activity here.")
-                            .background(PulseColors.card)
-                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
-                    } else {
-                        ForEach(summary.timeline.prefix(5).map { $0 }) { event in
-                            EventRow(event: event)
-                        }
-                    }
-                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 96)
@@ -133,11 +129,19 @@ struct TodayView: View {
         .background(PulseColors.background)
         .refreshable { await coordinator.pullToRefresh() }
         .task {
+            ensureStore()
+            if isActive { store?.refreshIfNeeded() }
             if coachEnabled { await summaryService.refreshTodayIfNeeded() }
         }
+        // Keep the dashboard live while on-screen: the persistence layer bumps one coalesced token
+        // per batched save, so we refresh once per sync burst (not per packet) — and only while this
+        // tab is visible. The store's signature check still makes each refresh a cheap no-op when
+        // nothing changed.
+        .onChange(of: dataChange.token) { _, _ in if isActive { store?.refreshIfNeeded() } }
+        .onChange(of: isActive) { _, active in if active { store?.refreshIfNeeded() } }
         .sheet(item: Binding(get: { measuring.map(MeasuringItem.init) }, set: { measuring = $0?.kind })) { item in
             MeasurementSheet(kind: item.kind)
-        }
+        })
     }
 
     private func hasHR(_ summary: TodaySummary) -> Bool {
@@ -151,37 +155,6 @@ struct TodayView: View {
 private struct MeasuringItem: Identifiable {
     let kind: MeasurementSheet.Kind
     var id: Int { kind == .hr ? 0 : 1 }
-}
-
-struct EventRow: View {
-    let event: TimelineEvent
-    var body: some View {
-        PulseCard(padding: 12) {
-            HStack {
-                Circle().fill(metricColor).frame(width: 9, height: 9)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(event.title)
-                        .font(.system(size: 14, weight: .medium))
-                    Text(event.detail)
-                        .font(.caption)
-                        .foregroundStyle(PulseColors.textMuted)
-                }
-                Spacer()
-                Text(event.timestamp, style: .time)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(PulseColors.textMuted)
-            }
-        }
-    }
-
-    private var metricColor: Color {
-        switch event.metric {
-        case "hr": return PulseColors.heartRate
-        case "spo2": return PulseColors.spo2
-        case "sleep": return PulseColors.sleep
-        default: return PulseColors.accent
-        }
-    }
 }
 
 /// Today hero + delta derivation, ported from `frontend/src/screens/Today.tsx`.

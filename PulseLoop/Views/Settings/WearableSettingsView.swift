@@ -14,11 +14,17 @@ struct WearableSettingsView: View {
     /// when the header shows a value.
     private var batteryPercent: Int? { ble.batteryPercent ?? devices.first?.batteryPercent }
 
+    /// `RelativeDateTimeFormatter` is expensive to allocate; reuse one instance instead of building
+    /// a fresh formatter on every access.
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
+
     private var lastSyncedLabel: String {
         guard let date = coordinator.lastSyncAt else { return "Not yet" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 
     var body: some View {
