@@ -7,6 +7,7 @@ enum CoachProviderMode: String, Codable, CaseIterable, Identifiable {
     case offlineStub
     case userOpenAIKey
     case userGeminiKey
+    case userOpenRouterKey
     case backendProxy
 
     var id: String { rawValue }
@@ -16,6 +17,7 @@ enum CoachProviderMode: String, Codable, CaseIterable, Identifiable {
         case .offlineStub: return "Offline"
         case .userOpenAIKey: return "OpenAI (your key)"
         case .userGeminiKey: return "Gemini (your key)"
+        case .userOpenRouterKey: return "OpenRouter (your key)"
         case .backendProxy: return "Backend proxy"
         }
     }
@@ -38,6 +40,43 @@ enum GeminiModel: String, CaseIterable, Identifiable {
         case .pro25:   return "Best reasoning"
         }
     }
+}
+
+/// Preset OpenRouter model slugs surfaced in Settings. OpenRouter routes a
+/// `vendor/model` slug to the underlying provider, and its catalog is large and
+/// changes often — so the stored `CoachSettings.model` stays a free string and
+/// Settings also exposes a "Custom…" text field where the user can type any
+/// current slug from openrouter.ai/models. These are just the curated picks.
+enum OpenRouterModel: String, CaseIterable, Identifiable {
+    case claudeSonnet = "anthropic/claude-sonnet-4.6"
+    case claudeOpus   = "anthropic/claude-opus-4.8"
+    case gpt55        = "openai/gpt-5.5"
+    case gpt54mini    = "openai/gpt-5.4-mini"
+    case geminiFlash  = "google/gemini-3.5-flash"
+    case geminiPro    = "google/gemini-3.1-pro"
+    case llamaScout   = "meta-llama/llama-4-scout"
+    case deepseekR1   = "deepseek/deepseek-r1"
+
+    var id: String { rawValue }
+
+    var label: String { rawValue }
+
+    var blurb: String {
+        switch self {
+        case .claudeSonnet: return "Balanced, great for coaching (default)"
+        case .claudeOpus:   return "Most capable Claude"
+        case .gpt55:        return "OpenAI flagship"
+        case .gpt54mini:    return "Lower cost & latency"
+        case .geminiFlash:  return "Fast & capable"
+        case .geminiPro:    return "Deep reasoning"
+        case .llamaScout:   return "Open-weight, low cost"
+        case .deepseekR1:   return "Strong open reasoning"
+        }
+    }
+
+    /// Sensible default when switching to OpenRouter (strong instruction-following
+    /// and structured-output support via OpenRouter).
+    static let `default` = OpenRouterModel.claudeSonnet
 }
 
 /// Preset OpenAI model choices. The stored `CoachSettings.model` is a free
@@ -88,6 +127,13 @@ struct CoachSettings: Codable, Equatable {
     var notificationsEnabled: Bool = false
     var morningHour: Int = 8
     var eveningHour: Int = 19
+
+    /// The OpenRouter model slug to use. Free-form (the user may type any slug);
+    /// falls back to the default only when the stored `model` is blank.
+    var openRouterModel: String {
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? OpenRouterModel.default.rawValue : trimmed
+    }
 
     static let `default` = CoachSettings()
 

@@ -19,7 +19,7 @@ struct CoachFeatureFlags {
         switch settings.providerMode {
         case .offlineStub:
             return false
-        case .userOpenAIKey, .userGeminiKey:
+        case .userOpenAIKey, .userGeminiKey, .userOpenRouterKey:
             return hasAPIKey
         case .backendProxy:
             return false  // not implemented in v1
@@ -44,6 +44,8 @@ struct CoachFeatureFlags {
             return hasAPIKey ? "Ready · \(settings.model)" : "Add an OpenAI key to enable."
         case .userGeminiKey:
             return hasAPIKey ? "Ready · \(settings.model)" : "Add a Gemini key to enable."
+        case .userOpenRouterKey:
+            return hasAPIKey ? "Ready · \(settings.openRouterModel)" : "Add an OpenRouter key to enable."
         case .backendProxy:
             return "Backend proxy not available yet."
         }
