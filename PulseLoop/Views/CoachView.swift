@@ -337,6 +337,10 @@ struct CoachBubble: View {
         message.role == "assistant" ? PendingAction.decode(fromJSON: message.pendingActionJSON) : nil
     }
 
+    private var turnError: CoachTurnError? {
+        message.role == "error" ? CoachTurnError.decode(fromJSON: message.cardsJSON) : nil
+    }
+
     var body: some View {
         HStack {
             if message.role == "user" { Spacer(minLength: 40) }
@@ -355,7 +359,9 @@ struct CoachBubble: View {
     }
 
     @ViewBuilder private var content: some View {
-        if let structured {
+        if let turnError {
+            CoachErrorBubble(error: turnError)
+        } else if let structured {
             CoachResponseView(response: structured, onChipTap: onChipTap)
                 .padding(14)
                 .background(PulseColors.card)
@@ -373,6 +379,42 @@ struct CoachBubble: View {
                         .stroke(message.role == "user" ? Color.clear : PulseColors.borderSubtle, lineWidth: 1)
                 )
         }
+    }
+}
+
+/// Red-bordered error bubble shown when a coach turn fails. Displays the error
+/// code (e.g. "HTTP 401") and the full reason so failures are explicit in chat,
+/// across all providers. Matches the chat design system (card background, 18pt
+/// radius, 14pt padding) with a `PulseColors.danger` accent.
+struct CoachErrorBubble: View {
+    let error: CoachTurnError
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Coach error")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("·").foregroundStyle(PulseColors.textMuted)
+                Text(error.code)
+                    .font(.system(size: 12, weight: .semibold).monospaced())
+            }
+            .foregroundStyle(PulseColors.danger)
+
+            Text(error.reason)
+                .font(.system(size: 14))
+                .foregroundStyle(PulseColors.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+        }
+        .padding(14)
+        .background(PulseColors.danger.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(PulseColors.danger, lineWidth: 1.5)
+        )
     }
 }
 

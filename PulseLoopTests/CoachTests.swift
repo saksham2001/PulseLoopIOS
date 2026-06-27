@@ -700,3 +700,43 @@ final class OpenRouterClientTests: XCTestCase {
         XCTAssertNil(json["provider"], "require_parameters must not be set without a schema to enforce")
     }
 }
+
+// MARK: - CoachTurnError mapping
+
+final class CoachTurnErrorTests: XCTestCase {
+    func testHTTPErrorExtractsCodeAndJSONMessage() {
+        let err = CoachTurnError(ResponsesError.http(
+            status: 401,
+            body: #"{"error":{"message":"No auth credentials found","code":401}}"#))
+        XCTAssertEqual(err.code, "HTTP 401")
+        XCTAssertEqual(err.reason, "No auth credentials found")
+    }
+
+    func testHTTPErrorWithPlainBodyFallsBackToBody() {
+        let err = CoachTurnError(ResponsesError.http(status: 502, body: "Bad gateway"))
+        XCTAssertEqual(err.code, "HTTP 502")
+        XCTAssertEqual(err.reason, "Bad gateway")
+    }
+
+    func testHTTPErrorWithEmptyBodyHasReadableReason() {
+        let err = CoachTurnError(ResponsesError.http(status: 500, body: ""))
+        XCTAssertEqual(err.code, "HTTP 500")
+        XCTAssertTrue(err.reason.contains("500"))
+    }
+
+    func testMissingAPIKeyMapsToFriendlyMessage() {
+        let err = CoachTurnError(ResponsesError.missingAPIKey)
+        XCTAssertEqual(err.code, "No API key")
+        XCTAssertFalse(err.reason.isEmpty)
+    }
+
+    func testEmptyOutputMapsToNoOutput() {
+        XCTAssertEqual(CoachTurnError(ResponsesError.emptyOutput).code, "No output")
+    }
+
+    func testRoundTripsThroughJSONForPersistence() throws {
+        let original = CoachTurnError(code: "HTTP 429", reason: "Rate limited")
+        let json = try XCTUnwrap(original.encodedJSON())
+        XCTAssertEqual(CoachTurnError.decode(fromJSON: json), original)
+    }
+}
