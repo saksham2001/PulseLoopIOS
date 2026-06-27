@@ -515,3 +515,228 @@ final class GeminiClientTests: XCTestCase {
                       "grounding sources must be carried into the follow-up turn")
     }
 }
+
+// MARK: - OpenRouterClient
+
+final class OpenRouterClientTests: XCTestCase {
+    private func session() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    private let okBody = Data(#"{"id":"gen-1","choices":[{"message":{"content":"ok"}}]}"#.utf8)
+
+    /// Decodes the body the client actually sent to OpenRouter.
+    private func sentBody() throws -> [String: Any] {
+        let data = try XCTUnwrap(StubURLProtocol.lastRequestBody)
+        return try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    func testParsesContentAndToolCalls() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = Data("""
+        {"id":"gen-2","choices":[{"message":{"content":null,"tool_calls":[
+          {"id":"call_1","type":"function","function":{"name":"get_daily_summary","arguments":"{\\"date\\":\\"2026-06-01\\"}"}}
+        ]}}]}
+        """.utf8)
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "anthropic/claude-sonnet-4.6", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "ignored-by-openrouter", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        let response = try await client.send(requestBody: body)
+
+        XCTAssertEqual(response.functionCalls.count, 1)
+        XCTAssertEqual(response.functionCalls.first?.name, "get_daily_summary")
+        XCTAssertEqual(response.functionCalls.first?.callID, "call_1")
+        XCTAssertTrue(response.functionCalls.first?.arguments.contains("2026-06-01") ?? false)
+    }
+
+    /// Web search: the hosted `web_search` tool spec must be dropped from the
+    /// function tools and instead route via the `:online` model suffix.
+    func testWebSearchAddsOnlineSuffixAndDropsHostedTool() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "anthropic/claude-sonnet-4.6", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [["type": "web_search"]], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        let json = try sentBody()
+        XCTAssertEqual(json["model"] as? String, "anthropic/claude-sonnet-4.6:online")
+        // web_search is a hosted tool, not a function — it must not appear in tools.
+        XCTAssertNil(json["tools"], "hosted web_search must be dropped, not forwarded as a function tool")
+    }
+
+    func testNoWebSearchKeepsBareModelSlug() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "anthropic/claude-sonnet-4.6", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        XCTAssertEqual(try sentBody()["model"] as? String, "anthropic/claude-sonnet-4.6")
+    }
+
+    /// A user-typed Custom slug already ending in `:online` must not be doubled.
+    func testOnlineSuffixNotDoubled() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "anthropic/claude-sonnet-4.6:online", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [["type": "web_search"]], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        XCTAssertEqual(try sentBody()["model"] as? String, "anthropic/claude-sonnet-4.6:online")
+    }
+
+    func testPrivacyRoutingAddsDataCollectionDeny() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "x/y", privacyRouting: true, session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        let provider = try XCTUnwrap(try sentBody()["provider"] as? [String: Any])
+        XCTAssertEqual(provider["data_collection"] as? String, "deny")
+    }
+
+    func testProviderSortAndPrivacyMergeIntoOneProviderObject() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(
+            apiKey: "sk-or-v1-test", model: "x/y", privacyRouting: true, providerSort: "price", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        let provider = try XCTUnwrap(try sentBody()["provider"] as? [String: Any])
+        XCTAssertEqual(provider["sort"] as? String, "price")
+        XCTAssertEqual(provider["data_collection"] as? String, "deny")
+    }
+
+    func testNoProviderObjectWhenRoutingUnset() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "x/y", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        XCTAssertNil(try sentBody()["provider"], "provider object must be omitted when no routing options are set")
+    }
+
+    /// Regression: the unified `reasoning` object the app builds must still be
+    /// forwarded as-is.
+    func testReasoningForwarded() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "x/y", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: "high")
+        _ = try await client.send(requestBody: body)
+
+        let reasoning = try XCTUnwrap(try sentBody()["reasoning"] as? [String: Any])
+        XCTAssertEqual(reasoning["effort"] as? String, "high")
+    }
+
+    /// Structured outputs: the Responses-API `text.format` schema must be sent as
+    /// Chat Completions `response_format` with `strict: true`, and the provider
+    /// object must carry `require_parameters: true` so OpenRouter only routes to
+    /// providers that actually enforce the schema.
+    func testStructuredOutputSendsResponseFormatAndRequireParameters() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "x/y", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: CoachResponseSchema.textFormat,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        let json = try sentBody()
+        let rf = try XCTUnwrap(json["response_format"] as? [String: Any])
+        XCTAssertEqual(rf["type"] as? String, "json_schema")
+        let jsonSchema = try XCTUnwrap(rf["json_schema"] as? [String: Any])
+        XCTAssertEqual(jsonSchema["strict"] as? Bool, true)
+        XCTAssertEqual(jsonSchema["name"] as? String, "coach_response")
+        XCTAssertNotNil(jsonSchema["schema"] as? [String: Any], "the coach_response schema must be carried")
+
+        let provider = try XCTUnwrap(json["provider"] as? [String: Any])
+        XCTAssertEqual(provider["require_parameters"] as? Bool, true)
+    }
+
+    /// No `text.format` (e.g. a turn that doesn't constrain output) → no
+    /// `response_format` and no `require_parameters`-only provider object.
+    func testNoResponseFormatWhenNoSchema() async throws {
+        StubURLProtocol.statusCode = 200
+        StubURLProtocol.responseBody = okBody
+
+        let client = OpenRouterClient(apiKey: "sk-or-v1-test", model: "x/y", session: session())
+        let body = try OpenAIRequestBuilder.data(
+            model: "x", input: [], tools: [], textFormat: nil,
+            previousResponseId: nil, reasoningEffort: nil)
+        _ = try await client.send(requestBody: body)
+
+        let json = try sentBody()
+        XCTAssertNil(json["response_format"])
+        XCTAssertNil(json["provider"], "require_parameters must not be set without a schema to enforce")
+    }
+}
+
+// MARK: - CoachTurnError mapping
+
+final class CoachTurnErrorTests: XCTestCase {
+    func testHTTPErrorExtractsCodeAndJSONMessage() {
+        let err = CoachTurnError(ResponsesError.http(
+            status: 401,
+            body: #"{"error":{"message":"No auth credentials found","code":401}}"#))
+        XCTAssertEqual(err.code, "HTTP 401")
+        XCTAssertEqual(err.reason, "No auth credentials found")
+    }
+
+    func testHTTPErrorWithPlainBodyFallsBackToBody() {
+        let err = CoachTurnError(ResponsesError.http(status: 502, body: "Bad gateway"))
+        XCTAssertEqual(err.code, "HTTP 502")
+        XCTAssertEqual(err.reason, "Bad gateway")
+    }
+
+    func testHTTPErrorWithEmptyBodyHasReadableReason() {
+        let err = CoachTurnError(ResponsesError.http(status: 500, body: ""))
+        XCTAssertEqual(err.code, "HTTP 500")
+        XCTAssertTrue(err.reason.contains("500"))
+    }
+
+    func testMissingAPIKeyMapsToFriendlyMessage() {
+        let err = CoachTurnError(ResponsesError.missingAPIKey)
+        XCTAssertEqual(err.code, "No API key")
+        XCTAssertFalse(err.reason.isEmpty)
+    }
+
+    func testEmptyOutputMapsToNoOutput() {
+        XCTAssertEqual(CoachTurnError(ResponsesError.emptyOutput).code, "No output")
+    }
+
+    func testRoundTripsThroughJSONForPersistence() throws {
+        let original = CoachTurnError(code: "HTTP 429", reason: "Rate limited")
+        let json = try XCTUnwrap(original.encodedJSON())
+        XCTAssertEqual(CoachTurnError.decode(fromJSON: json), original)
+    }
+}

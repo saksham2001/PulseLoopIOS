@@ -18,6 +18,9 @@ struct CoachOrchestrator {
         let assistant: CoachResponse
         let trace: [CoachToolCallTrace]
         var pendingActions: [PendingAction] = []
+        /// Set when the turn failed; surfaced as a red error bubble instead of the
+        /// `assistant` fallback. `nil` on success.
+        var error: CoachTurnError? = nil
     }
 
     struct PriorMessage { let role: String; let text: String }
@@ -35,7 +38,7 @@ struct CoachOrchestrator {
             return try await runOpenAI(userText: userText, packet: packet, recentMessages: recentMessages, onTrace: onTrace)
         } catch {
             onTrace(CoachTraceEvent(label: "Something went wrong", status: .failedTool))
-            return TurnResult(assistant: CoachFallbacks.fallback(), trace: [])
+            return TurnResult(assistant: CoachFallbacks.fallback(), trace: [], error: CoachTurnError(error))
         }
     }
 
@@ -112,10 +115,23 @@ struct CoachOrchestrator {
             noteWebSearch(response, onTrace: onTrace)
         }
 
-        let assistant = try await parseFinal(response, textFormat: textFormat)
-        onTrace(CoachTraceEvent(label: "", status: .done))
-        return TurnResult(assistant: assistant, trace: trace, pendingActions: toolContext.pendingActions)
+        do {
+            let assistant = try await parseFinal(response, textFormat: textFormat)
+            onTrace(CoachTraceEvent(label: "", status: .done))
+            return TurnResult(assistant: assistant, trace: trace, pendingActions: toolContext.pendingActions)
+        } catch let parseError as ParseExhausted {
+            // The model never produced valid coach_response JSON. Surface it as an
+            // error bubble, but keep the trace from the tools that did run.
+            onTrace(CoachTraceEvent(label: "Couldn't format the answer", status: .failedTool))
+            return TurnResult(
+                assistant: CoachFallbacks.fallback(), trace: trace,
+                error: CoachTurnError(code: "Bad response", reason: parseError.reason))
+        }
     }
+
+    /// Thrown by `parseFinal` when the model never returns valid coach_response
+    /// JSON after the repair attempts.
+    private struct ParseExhausted: Error { let reason: String }
 
     // MARK: - Final parse + repair
 
@@ -125,7 +141,11 @@ struct CoachOrchestrator {
         while true {
             if let parsed = CoachResponseParser.parse(current.outputText) { return parsed }
             attempts += 1
-            if attempts > maxFinalAttempts { return CoachFallbacks.fallback() }
+            if attempts > maxFinalAttempts {
+                let snippet = current.outputText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200)
+                throw ParseExhausted(reason: "The model didn't return a valid structured answer after \(maxFinalAttempts) attempts."
+                    + (snippet.isEmpty ? "" : " It replied: “\(snippet)…”"))
+            }
             let repair = OpenAIRequestBuilder.message(
                 role: "user",
                 content: "Your previous output did not match the required coach_response JSON schema. Return only valid JSON for that schema now.")

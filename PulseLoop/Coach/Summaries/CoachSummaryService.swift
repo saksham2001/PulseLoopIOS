@@ -10,6 +10,7 @@ final class CoachSummaryService {
     private let modelContext: ModelContext
     private let keyStore: APIKeyStore
     private let geminiKeyStore: APIKeyStore
+    private let openRouterKeyStore: APIKeyStore
     private let settingsStore: CoachSettingsStore
     private let clientFactory: (String) -> ResponsesClient
 
@@ -20,12 +21,14 @@ final class CoachSummaryService {
         modelContext: ModelContext,
         keyStore: APIKeyStore = OpenAIKeychainStore(),
         geminiKeyStore: APIKeyStore = GeminiKeychainStore(),
+        openRouterKeyStore: APIKeyStore = OpenRouterKeychainStore(),
         settingsStore: CoachSettingsStore = .shared,
         clientFactory: @escaping (String) -> ResponsesClient = { OpenAIResponsesClient(apiKey: $0) }
     ) {
         self.modelContext = modelContext
         self.keyStore = keyStore
         self.geminiKeyStore = geminiKeyStore
+        self.openRouterKeyStore = openRouterKeyStore
         self.settingsStore = settingsStore
         self.clientFactory = clientFactory
     }
@@ -92,6 +95,13 @@ final class CoachSummaryService {
         case .userGeminiKey:
             let key = (try? geminiKeyStore.readKey()) ?? nil
             return (key, GeminiClient(apiKey: key ?? ""))
+        case .userOpenRouterKey:
+            let key = (try? openRouterKeyStore.readKey()) ?? nil
+            return (key, OpenRouterClient(
+                apiKey: key ?? "",
+                model: settingsStore.settings.openRouterModel,
+                privacyRouting: settingsStore.settings.orEnablePrivacyRouting,
+                providerSort: settingsStore.settings.orProviderSort))
         default:
             let key = (try? keyStore.readKey()) ?? nil
             return (key, clientFactory(key ?? ""))
