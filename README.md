@@ -39,8 +39,6 @@
   <a href="https://x.com/vu3dtu/status/2064797099385061792"><img src="https://img.shields.io/badge/-000000?logo=x&logoColor=white" alt="X post"></a>
 </p>
 
----
-
 An LLM-native health app for iOS that turns a cheap Bluetooth "smart ring"
 into a real, conversational health tracker. It currently supports the generic Chinese
 Jring and the Colmi / Yawell ring family (R02/R0x/R1x/H59), behind a device-agnostic driver layer so
@@ -56,8 +54,6 @@ your sleep, heart rate, activity, and recovery.
 > wearable, and that the "intelligence" should live on the phone, not behind a
 > paywall.
 
----
-
 ## Documentation
 
 📚 **Full docs: [saksham2001.github.io/PulseLoopiOS](https://saksham2001.github.io/PulseLoopiOS/)**
@@ -67,8 +63,6 @@ your sleep, heart rate, activity, and recovery.
 - [Supported hardware](https://saksham2001.github.io/PulseLoopiOS/hardware/)
 - [iOS vs Android](https://saksham2001.github.io/PulseLoopiOS/platforms/ios-vs-android/)
 - [Architecture](https://saksham2001.github.io/PulseLoopiOS/project/architecture/) · [Roadmap](https://saksham2001.github.io/PulseLoopiOS/project/roadmap/) · [Contributing](https://saksham2001.github.io/PulseLoopiOS/project/contributing/)
-
----
 
 ## What it does
 
@@ -97,8 +91,6 @@ trends.
 | --- | --- | --- |
 | [![Activity](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/activity%20page%201.PNG)](/screenshots/activity%20page%201.PNG) | [![Vitals](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/vitals%20page%201.PNG)](/screenshots/vitals%20page%201.PNG) | [![Workout Summary](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/activity%20recording-%20complete%201.PNG)](/screenshots/activity%20recording-%20complete%201.PNG) |
 
----
-
 ## Also on Android
 
 PulseLoop has a sister project for Android: **[PulseLoopAndroid](https://github.com/foureight84/PulseLoopAndroid)**
@@ -111,8 +103,6 @@ Pick the build for your phone — both connect to the same rings.
 
 > Coordination, the shared roadmap, and cross-platform discussion all happen in
 > the [Discord](#community).
-
----
 
 ## Community
 
@@ -129,8 +119,6 @@ New here? Good places to start:
   [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 - Say hi in Discord and tell us what ring you have — device reports are
   genuinely useful.
-
----
 
 ## Supported Wearables
 
@@ -153,8 +141,6 @@ declares exactly what it can do and the app shows only those features.
 > 📚 **Full hardware specs, per-model capability matrix, and buying guidance:
 > [Supported hardware docs](https://saksham2001.github.io/PulseLoopiOS/hardware/).**
 
----
-
 ## Install & try it
 
 ### 📲 TestFlight beta
@@ -173,8 +159,6 @@ build & run on your device.
 > [Getting started — iOS](https://saksham2001.github.io/PulseLoopiOS/getting-started/ios/).**
 > Building on Android? See the
 > [Android guide](https://saksham2001.github.io/PulseLoopiOS/getting-started/android/).
-
----
 
 ## Contributing
 
@@ -196,16 +180,12 @@ place to start — ping us in Discord and we'll point you at the right files.
 > [architecture / project layout](https://saksham2001.github.io/PulseLoopiOS/project/architecture/)
 > now live in the docs.
 
----
-
 ## Acknowledgements
 
 - [@foureight84](https://github.com/foureight84) for the
   [Android port](https://github.com/foureight84/PulseLoopAndroid).
 - Everyone who's filed an issue, opened a PR, or reported a device — see the
   [contributors graph](https://github.com/saksham2001/PulseLoopiOS/graphs/contributors).
-
----
 
 ## License
 
