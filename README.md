@@ -5,7 +5,7 @@
   <a href="https://github.com/saksham2001/PulseLoopiOS/stargazers"><img src="https://img.shields.io/github/stars/saksham2001/PulseLoopiOS?style=flat&logo=github" alt="Stars"></a>
   <a href="https://github.com/saksham2001/PulseLoopiOS/network/members"><img src="https://img.shields.io/github/forks/saksham2001/PulseLoopiOS?style=flat&logo=github" alt="Forks"></a>
   <a href="https://github.com/saksham2001/PulseLoopiOS/issues"><img src="https://img.shields.io/github/issues/saksham2001/PulseLoopiOS" alt="Issues"></a>
-  <a href="https://github.com/saksham2001/PulseLoopiOS/pulls"><img src="https://img.shields.io/github/issues-pr/saksham2001/PulseLoopiOS?label=open%20PRs&logo=github" alt="PRs"></a>
+  <a href="https://github.com/saksham2001/PulseLoopiOS/pulls"><img src="https://img.shields.io/github/issues-pr/saksham2001/PulseLoopiOS?label=PRs&logo=github" alt="PRs"></a>
   <!-- TODO: replace ci.yml with your actual workflow filename in .github/workflows/ -->
   <a href="https://github.com/saksham2001/PulseLoopiOS/actions"><img src="https://img.shields.io/github/actions/workflow/status/saksham2001/PulseLoopiOS/ci.yml?label=CI&logo=githubactions&logoColor=white" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-iOS%2018%2B-lightgrey?logo=apple" alt="Platform">
