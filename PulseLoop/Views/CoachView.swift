@@ -28,7 +28,6 @@ struct CoachView: View {
     // Image attachment (multimodal input). One staged image per message.
     @State private var stagedImage: UIImage?
     @State private var stagedAttachment: CoachAttachmentRef?
-    @State private var showImageSourceDialog = false
     @State private var showPhotosPicker = false
     @State private var showCamera = false
     @State private var photosPickerItem: PhotosPickerItem?
@@ -172,18 +171,21 @@ struct CoachView: View {
             if let stagedImage { stagedThumbnail(stagedImage) }
 
             HStack(spacing: 8) {
+                // Camera button — only shown when image input is enabled in
+                // Settings. Nothing is shown when off. Opens the camera directly;
+                // falls back to the photo library where no camera exists (simulator).
                 if imageInputEnabled {
-                    Button { composerFocused = false; showImageSourceDialog = true } label: {
-                        Image(systemName: "photo.on.rectangle")
+                    Button {
+                        composerFocused = false
+                        if UIImagePickerController.cameraAvailable { showCamera = true }
+                        else { showPhotosPicker = true }
+                    } label: {
+                        Image(systemName: "camera")
                             .font(.system(size: 17)).foregroundStyle(PulseColors.textSecondary)
                             .frame(width: 36, height: 36).background(PulseColors.card, in: Circle())
                             .overlay(Circle().stroke(PulseColors.borderSubtle, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
-                } else {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18)).foregroundStyle(PulseColors.textMuted)
-                        .frame(width: 36, height: 36).background(PulseColors.card, in: Circle()).opacity(0.6)
                 }
                 TextField("Ask the coach...", text: $draft)
                     .focused($composerFocused)
@@ -205,13 +207,6 @@ struct CoachView: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .confirmationDialog("Add image", isPresented: $showImageSourceDialog, titleVisibility: .visible) {
-            Button("Photo Library") { showPhotosPicker = true }
-            if UIImagePickerController.cameraAvailable {
-                Button("Camera") { showCamera = true }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
         .photosPicker(isPresented: $showPhotosPicker, selection: $photosPickerItem, matching: .images)
         .onChange(of: photosPickerItem) { _, item in
             guard let item else { return }
