@@ -100,6 +100,16 @@ final class EventPersistenceSubscriber {
         self.context = context
     }
 
+    // Explicit deinit: cancels the outstanding event/flush tasks and (crucially) gives this
+    // @MainActor class a non-isolated deinit. Without one, the compiler synthesizes a main-actor
+    // -isolated deinit that hops through `swift_task_deinitOnExecutorMainActorBackDeploy` on dealloc;
+    // that back-deploy shim double-frees on iOS < 26.5 (the CI runner's runtime), aborting the test
+    // process with SIGABRT when a unit test creates and drops a subscriber. See the CI notes in ci.yml.
+    deinit {
+        task?.cancel()
+        flushTask?.cancel()
+    }
+
     func start() {
         guard task == nil else { return }
         task = Task {
