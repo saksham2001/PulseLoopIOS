@@ -32,7 +32,14 @@ struct CoachView: View {
     @State private var showCamera = false
     @State private var photosPickerItem: PhotosPickerItem?
 
-    private var imageInputEnabled: Bool { settingsStore.settings.enableImageInput }
+    /// Image attach is offered only when enabled *and* the provider supports it.
+    /// The on-device model has no image-input API in the shipping SDK, so the
+    /// composer hides the attach button there even if the stored flag is on (e.g.
+    /// left over from another provider).
+    private var imageInputEnabled: Bool {
+        settingsStore.settings.enableImageInput
+            && settingsStore.settings.providerMode != .appleOnDevice
+    }
 
     /// Bottom inset for the composer: clears the overlaid nav bar (~60) when the
     /// keyboard is hidden, and sits just above the keyboard when shown. Computed
