@@ -14,6 +14,11 @@ import os
 /// The export is idempotent: every sync first deletes the objects this app wrote
 /// previously, then writes the current state, so pressing "Sync" repeatedly never
 /// duplicates data. Stress has no native HealthKit equivalent and is skipped.
+///
+/// It also runs one *import* in the other direction: `importWorkouts` reads workouts
+/// logged by other apps (Apple Watch, Whoop, Strava, …) and mirrors them into local
+/// `ActivitySession` rows so they appear in PulseLoop's activity section. Imported rows
+/// are tagged with their source `HKWorkout.uuid` and are never written back to Health.
 @MainActor
 @Observable
 final class HealthSyncService {
@@ -170,9 +175,12 @@ final class HealthSyncService {
         }
 
         // Workouts are needed both to build HKWorkouts and to net them out of the
-        // daily totals (so active energy isn't counted twice in the Move ring).
+        // daily totals (so active energy isn't counted twice in the Move ring). Only
+        // *natively recorded* sessions count here — workouts imported from Health were
+        // logged by another app and aren't part of the ring's daily totals, so they
+        // must neither be written back nor subtracted from those totals.
         let finishedSessions = ActivityRepository.sessions(context: context)
-            .filter { $0.status == .finished && $0.endedAt != nil }
+            .filter { $0.status == .finished && $0.endedAt != nil && $0.healthKitWorkoutID == nil }
 
         // Phase 1 — incremental sync of unsynced state.
         var counts = SyncCounts()
@@ -181,10 +189,14 @@ final class HealthSyncService {
             try await syncMeasurements(context: context, counts: &counts)
             try await syncDailyActivity(sessions: finishedSessions, context: context, counts: &counts)
             try await syncSleep(context: context, counts: &counts)
-            
+
             let unsyncedSessions = ActivityRepository.unsyncedSessions(context: context)
-                .filter { $0.status == .finished && $0.endedAt != nil }
+                .filter { $0.status == .finished && $0.endedAt != nil && $0.healthKitWorkoutID == nil }
             try await syncWorkouts(sessions: unsyncedSessions, context: context, counts: &counts)
+
+            // Phase 2 — import workouts logged by *other* apps (Whoop, Strava, Apple
+            // Watch, …) so they appear in PulseLoop's activity section too.
+            try await importWorkouts(context: context, counts: &counts)
         } catch {
             log.error("Health sync failed: \(error.localizedDescription)")
             let msg = "Synced with errors: \(error.localizedDescription)"
@@ -648,6 +660,7 @@ final class HealthSyncService {
         var dailyMetrics = 0
         var sleep = 0
         var workouts = 0
+        var workoutsImported = 0
 
         var summary: String {
             var parts: [String] = []
@@ -655,8 +668,12 @@ final class HealthSyncService {
             if measurements > 0 { parts.append("\(measurements) vitals") }
             if sleep > 0 { parts.append("\(sleep) sleep segment\(sleep == 1 ? "" : "s")") }
             if dailyMetrics > 0 { parts.append("\(dailyMetrics) daily total\(dailyMetrics == 1 ? "" : "s")") }
-            guard !parts.isEmpty else { return "Nothing to sync yet." }
-            return "Synced " + parts.joined(separator: ", ") + " to Apple Health."
+            var sentence = parts.isEmpty ? "" : "Synced " + parts.joined(separator: ", ") + " to Apple Health."
+            if workoutsImported > 0 {
+                let imported = "Imported \(workoutsImported) workout\(workoutsImported == 1 ? "" : "s") from Apple Health."
+                sentence = sentence.isEmpty ? imported : sentence + " " + imported
+            }
+            return sentence.isEmpty ? "Nothing to sync yet." : sentence
         }
     }
 
@@ -675,10 +692,150 @@ final class HealthSyncService {
             s.syncedAt = nil
         }
         let workouts = (try? context.fetch(FetchDescriptor<ActivitySession>())) ?? []
-        for w in workouts {
+        for w in workouts where w.healthKitWorkoutID == nil {
+            // Never re-export workouts that were imported *from* Health — only natively
+            // recorded sessions should be eligible for a forced re-sync.
             w.syncedAt = nil
         }
         try? context.save()
+    }
+}
+
+// MARK: - Workout import (read workouts logged by other apps)
+
+extension HealthSyncService {
+
+    /// How far back the first import scans Apple Health. Later syncs dedupe by UUID, so this
+    /// only bounds the *initial* backfill rather than re-scanning the user's full history.
+    private static let importLookbackDays = 365
+
+    /// Pulls `HKWorkout`s recorded by *other* apps (Apple Watch, Whoop, Strava, …) into local
+    /// `ActivitySession` rows so they appear in PulseLoop's activity section alongside natively
+    /// recorded workouts. Workouts this app itself wrote to Health are skipped (their source is
+    /// us — importing them would loop), and each external workout is keyed by its `HKWorkout.uuid`
+    /// so repeat syncs dedupe instead of duplicating. Imported rows are marked `syncedAt` and carry
+    /// a `healthKitWorkoutID`, so the export path never writes them back.
+    private func importWorkouts(context: ModelContext, counts: inout SyncCounts) async throws {
+        let workoutType = HKObjectType.workoutType()
+        // Read auth is private in HealthKit; if the user never saw the prompt there's nothing to do.
+        guard store.authorizationStatus(for: workoutType) != .notDetermined else { return }
+
+        let lookbackStart = Calendar.current.date(byAdding: .day, value: -Self.importLookbackDays, to: Date())
+        let predicate = HKQuery.predicateForSamples(withStart: lookbackStart, end: nil, options: .strictStartDate)
+
+        let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(
+                sampleType: workoutType, predicate: predicate,
+                limit: HKObjectQueryNoLimit, sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error { continuation.resume(throwing: error); return }
+                continuation.resume(returning: (samples as? [HKWorkout]) ?? [])
+            }
+            store.execute(query)
+        }
+        guard !workouts.isEmpty else { return }
+
+        // Skip workouts this app wrote to Health — we already have those locally.
+        let ownBundleID = Bundle.main.bundleIdentifier
+        let external = workouts.filter { $0.sourceRevision.source.bundleIdentifier != ownBundleID }
+        guard !external.isEmpty else { return }
+
+        // Dedupe against previously imported workouts by their source UUID.
+        let alreadyImported = Set(
+            ActivityRepository.sessions(context: context).compactMap { $0.healthKitWorkoutID }
+        )
+
+        var imported = 0
+        for workout in external where !alreadyImported.contains(workout.uuid) {
+            guard workout.endDate > workout.startDate else { continue }
+            let session = ActivitySession(
+                type: Self.activityType(from: workout.workoutActivityType),
+                status: .finished,
+                startedAt: workout.startDate,
+                endedAt: workout.endDate,
+                calories: Self.energyKcal(from: workout),
+                distanceMeters: Self.distanceMeters(from: workout),
+                useGps: false,
+                // Already "synced" from our perspective — it originated in Health — so the
+                // export path leaves it alone. The healthKitWorkoutID is the durable guard.
+                syncedAt: Date()
+            )
+            session.healthKitWorkoutID = workout.uuid
+            if let hr = Self.heartRateStats(from: workout) {
+                session.avgHeartRate = hr.avg
+                session.minHeartRate = hr.min
+                session.maxHeartRate = hr.max
+            }
+            context.insert(session)
+            imported += 1
+        }
+
+        if imported > 0 {
+            try? context.save()
+            counts.workoutsImported = imported
+            log.info("Imported \(imported) external workout(s) from Apple Health.")
+        }
+    }
+
+    /// Total active energy (kcal) recorded for a workout, via the non-deprecated statistics API.
+    private static func energyKcal(from workout: HKWorkout) -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+              let sum = workout.statistics(for: type)?.sumQuantity() else { return nil }
+        let kcal = sum.doubleValue(for: .kilocalorie())
+        return kcal > 0 ? kcal : nil
+    }
+
+    /// Total distance (m) for a workout — sums walking/running and cycling so either kind lands.
+    private static func distanceMeters(from workout: HKWorkout) -> Double? {
+        var total = 0.0
+        for id in [HKQuantityTypeIdentifier.distanceWalkingRunning, .distanceCycling] {
+            guard let type = HKQuantityType.quantityType(forIdentifier: id),
+                  let sum = workout.statistics(for: type)?.sumQuantity() else { continue }
+            total += sum.doubleValue(for: .meter())
+        }
+        return total > 0 ? total : nil
+    }
+
+    /// Average / min / max heart rate (bpm) for a workout, when the source captured HR samples.
+    private static func heartRateStats(from workout: HKWorkout) -> (avg: Double, min: Double, max: Double)? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate),
+              let stats = workout.statistics(for: type) else { return nil }
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        guard let avg = stats.averageQuantity()?.doubleValue(for: unit) else { return nil }
+        let mn = stats.minimumQuantity()?.doubleValue(for: unit) ?? avg
+        let mx = stats.maximumQuantity()?.doubleValue(for: unit) ?? avg
+        return (avg, mn, mx)
+    }
+
+    /// Inverse of `workoutActivityType(for:)` — maps an imported workout's HealthKit activity
+    /// type onto one of PulseLoop's canonical activity types (see `ActivityMeta.order`). Unknown
+    /// types fall back to "other" so they still surface in the activity section.
+    static func activityType(from hkType: HKWorkoutActivityType) -> String {
+        switch hkType {
+        case .walking:
+            return "walk"
+        case .running:
+            return "run"
+        case .cycling, .handCycling:
+            return "cycle"
+        case .traditionalStrengthTraining, .functionalStrengthTraining, .coreTraining,
+             .highIntensityIntervalTraining, .crossTraining:
+            return "gym"
+        case .squash:
+            return "squash"
+        case .yoga, .flexibility, .mindAndBody, .pilates:
+            return "yoga"
+        case .cardioDance, .socialDance, .barre:
+            return "dance"
+        case .hiking:
+            return "hike"
+        case .soccer, .basketball, .tennis, .americanFootball, .baseball, .volleyball,
+             .badminton, .tableTennis, .racquetball, .cricket, .hockey, .rugby:
+            return "sport"
+        default:
+            return "other"
+        }
     }
 }
 

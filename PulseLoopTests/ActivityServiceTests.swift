@@ -1,9 +1,33 @@
 import XCTest
 import SwiftData
+import HealthKit
 @testable import PulseLoop
 
 @MainActor
 final class ActivityServiceTests: XCTestCase {
+
+    // MARK: - Apple Health workout import mapping
+
+    /// Imported HealthKit workouts must land on PulseLoop's canonical activity types so they
+    /// render with the right icon/label in the activity section (and round-trip with the export
+    /// map). Unknown types fall back to "other" rather than being dropped.
+    func testHealthKitWorkoutTypeMapping() {
+        XCTAssertEqual(HealthSyncService.activityType(from: .walking), "walk")
+        XCTAssertEqual(HealthSyncService.activityType(from: .running), "run")
+        XCTAssertEqual(HealthSyncService.activityType(from: .cycling), "cycle")
+        XCTAssertEqual(HealthSyncService.activityType(from: .traditionalStrengthTraining), "gym")
+        XCTAssertEqual(HealthSyncService.activityType(from: .hiking), "hike")
+        XCTAssertEqual(HealthSyncService.activityType(from: .cardioDance), "dance")
+        XCTAssertEqual(HealthSyncService.activityType(from: .yoga), "yoga")
+        XCTAssertEqual(HealthSyncService.activityType(from: .soccer), "sport")
+        // Every mapped value must be a type ActivityMeta can render.
+        let known = Set(ActivityMeta.order)
+        for hk in [HKWorkoutActivityType.walking, .running, .cycling, .hiking, .swimming, .golf] {
+            XCTAssertTrue(known.contains(HealthSyncService.activityType(from: hk)),
+                          "mapped type for \(hk.rawValue) should be a known ActivityMeta type")
+        }
+    }
+
     func testRatchetOnlyIncreases() throws {
         let context = try TestSupport.makeContext()
         let date = Date()

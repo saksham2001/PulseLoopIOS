@@ -484,6 +484,12 @@ final class ActivitySession {
     var lastSensorPollAt: Date?
     var lastGpsPointAt: Date?
 
+    /// Set when this session was imported from an Apple Health workout recorded by a *different*
+    /// app (Whoop, Strava, Apple Watch, …). `nil` for sessions recorded natively in PulseLoop.
+    /// Stores the source `HKWorkout.uuid` so re-running the import dedupes instead of duplicating,
+    /// and so the Health *export* path / daily-total netting can exclude rows we only read in.
+    var healthKitWorkoutID: UUID? = nil
+
     init(
         id: UUID = UUID(),
         type: String,
