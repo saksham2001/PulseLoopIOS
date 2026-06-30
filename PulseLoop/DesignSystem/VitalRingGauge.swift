@@ -145,8 +145,9 @@ struct VitalRingGauge: View {
         if let color {
             let angle = GaugeGeometry.angle(for: fraction)
             let r = size / 2 - strokeInset
-            // Bulge along the tangent: +90° past the end (fraction 1), −90° before the start (0).
-            let bulge = fraction >= 0.5 ? angle.degrees + 90 : angle.degrees - 90
+            // Bulge tangentially OUTWARD past the sweep end: −90° at the end (fraction 1), +90° at the
+            // start (0). (The opposite signs bulge back into the zone.)
+            let bulge = fraction >= 0.5 ? angle.degrees - 90 : angle.degrees + 90
             HalfDisc()
                 .fill(color.opacity(0.32))
                 .frame(width: lineWidth, height: lineWidth)
@@ -251,7 +252,7 @@ struct DualVitalRingGauge: View {
     private func tip(at fraction: Double, radius: CGFloat, color: Color?) -> some View {
         if let color {
             let angle = GaugeGeometry.angle(for: fraction)
-            let bulge = fraction >= 0.5 ? angle.degrees + 90 : angle.degrees - 90
+            let bulge = fraction >= 0.5 ? angle.degrees - 90 : angle.degrees + 90
             HalfDisc()
                 .fill(color.opacity(0.30))
                 .frame(width: lineWidth, height: lineWidth)
