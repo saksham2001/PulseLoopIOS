@@ -377,7 +377,7 @@ struct RecordLiveView: View {
                         }
 
                         if showSplits(session) {
-                            SplitStrip(points: points)
+                            SplitStrip(points: points, units: units)
                         }
 
                         if session.useGps {
@@ -535,18 +535,19 @@ func haversineMeters(_ a: ActivityGpsPoint, _ b: ActivityGpsPoint) -> Double {
 /// Seconds elapsed for each *completed* kilometre of a route, in order. Walks the cumulative
 /// haversine distance and records the elapsed time every time distance crosses the next km mark.
 /// Shared by the live `SplitStrip` and the summary `SplitsTable`.
-func kmSplitSeconds(_ points: [ActivityGpsPoint]) -> [Double] {
+func kmSplitSeconds(_ points: [ActivityGpsPoint], units: UnitsPreference) -> [Double] {
     guard points.count >= 2, let first = points.first else { return [] }
+    let divisor = units == .imperial ? 1609.344 : 1000.0
     var cumulative = 0.0
     var markTime = first.timestamp
-    var nextKm = 1000.0
+    var nextMark = divisor
     var splits: [Double] = []
     for (a, b) in zip(points, points.dropFirst()) {
         cumulative += haversineMeters(a, b)
-        while cumulative >= nextKm {
+        while cumulative >= nextMark {
             splits.append(b.timestamp.timeIntervalSince(markTime))
             markTime = b.timestamp
-            nextKm += 1000
+            nextMark += divisor
         }
     }
     return splits
@@ -716,7 +717,7 @@ struct WorkoutMetricsSections: View {
 
             if session.useGps {
                 WorkoutMapView(points: points)
-                SplitsTable(points: accepted)
+                SplitsTable(points: accepted, units: units)
             }
 
             if hr.count > 1 {
@@ -888,19 +889,21 @@ private struct SummaryHeroBand: View {
 /// there isn't at least one full completed kilometre.
 private struct SplitsTable: View {
     let points: [ActivityGpsPoint]
+    let units: UnitsPreference
 
     var body: some View {
-        let splits = kmSplitSeconds(points)
+        let splits = kmSplitSeconds(points, units: units)
         if splits.count >= 1 {
             let fastest = splits.min() ?? 0
             let slowest = splits.max() ?? 1
+            let unitLabelCaps = units == .imperial ? "MI" : "KM"
             VStack(alignment: .leading, spacing: 10) {
                 Text("SPLITS").font(.system(size: 11, weight: .medium)).tracking(1.0).foregroundStyle(PulseColors.textMuted)
                 ForEach(Array(splits.enumerated()), id: \.offset) { index, seconds in
                     let isFastest = seconds == fastest
                     let frac = slowest > fastest ? (seconds - fastest) / (slowest - fastest) : 0
                     HStack(spacing: 12) {
-                        Text("KM \(index + 1)")
+                        Text("\(unitLabelCaps) \(index + 1)")
                             .font(.system(size: 12, weight: .medium).monospacedDigit())
                             .foregroundStyle(PulseColors.textSecondary)
                             .frame(width: 44, alignment: .leading)
@@ -927,8 +930,9 @@ private struct SplitsTable: View {
         }
     }
 
-    private func paceLabel(_ secPerKm: Double) -> String {
-        String(format: "%d:%02d /km", Int(secPerKm) / 60, Int(secPerKm.rounded()) % 60)
+    private func paceLabel(_ secPerUnit: Double) -> String {
+        let label = units == .imperial ? "/mi" : "/km"
+        return String(format: "%d:%02d %@", Int(secPerUnit) / 60, Int(secPerUnit.rounded()) % 60, label)
     }
 }
 
@@ -1072,33 +1076,36 @@ struct StatusPill: View {
     }
 }
 
-/// Per-kilometre splits for distance activities (last / best / current km pace).
+/// Per-kilometre/mile splits for distance activities (last / best / current pace).
 struct SplitStrip: View {
     let points: [ActivityGpsPoint]
+    let units: UnitsPreference
     var body: some View {
         let splits = kmSplits()
+        let unitLabel = units == .imperial ? "mi" : "km"
         HStack(spacing: 12) {
-            WorkoutStat(label: "Last km", value: splits.last ?? "—")
-            WorkoutStat(label: "Best km", value: splits.best ?? "—")
-            WorkoutStat(label: "This km", value: splits.current ?? "—")
+            WorkoutStat(label: "Last \(unitLabel)", value: splits.last ?? "—")
+            WorkoutStat(label: "Best \(unitLabel)", value: splits.best ?? "—")
+            WorkoutStat(label: "This \(unitLabel)", value: splits.current ?? "—")
         }
     }
 
     private func kmSplits() -> (last: String?, best: String?, current: String?) {
         guard points.count >= 2, let lastPoint = points.last else { return (nil, nil, nil) }
-        let splitSeconds = kmSplitSeconds(points)
+        let divisor = units == .imperial ? 1609.344 : 1000.0
+        let splitSeconds = kmSplitSeconds(points, units: units)
         let cumulative = zip(points, points.dropFirst()).reduce(0) { $0 + haversineMeters($1.0, $1.1) }
-        // Partial distance / time since the last whole-km mark.
-        let distSinceMark = cumulative.truncatingRemainder(dividingBy: 1000)
+        // Partial distance / time since the last whole-unit mark.
+        let distSinceMark = cumulative.truncatingRemainder(dividingBy: divisor)
         let elapsed = lastPoint.timestamp.timeIntervalSince(points.first?.timestamp ?? lastPoint.timestamp)
         let timeSinceMark = elapsed - splitSeconds.reduce(0, +)
-        let currentPace = distSinceMark >= 50 && timeSinceMark > 0 ? timeSinceMark / (distSinceMark / 1000) : nil
+        let currentPace = distSinceMark >= 50 && timeSinceMark > 0 ? timeSinceMark / (distSinceMark / divisor) : nil
         return (paceString(splitSeconds.last), paceString(splitSeconds.min()), paceString(currentPace))
     }
 
-    private func paceString(_ secPerKm: Double?) -> String? {
-        guard let secPerKm, secPerKm > 0 else { return nil }
-        return String(format: "%d:%02d", Int(secPerKm) / 60, Int(secPerKm.rounded()) % 60)
+    private func paceString(_ secPerUnit: Double?) -> String? {
+        guard let secPerUnit, secPerUnit > 0 else { return nil }
+        return String(format: "%d:%02d", Int(secPerUnit) / 60, Int(secPerUnit.rounded()) % 60)
     }
 }
 
@@ -1136,9 +1143,8 @@ struct RecordingQualityCard: View {
 
         var rows: [(String, String, Color)] = []
         if session.useGps {
-            let accepted = session.gpsPointCount
-            let total = accepted + session.rejectedGpsPointCount
-            let coverage = total > 0 ? Int(Double(accepted) / Double(total) * 100) : 0
+            let total = session.gpsPointCount + session.rejectedGpsPointCount
+            let coverage = total > 0 ? Int(Double(session.gpsPointCount) / Double(total) * 100) : 0
             rows.append(("GPS coverage", total > 0 ? "\(coverage)%" : "—", coverage >= 80 ? PulseColors.success : PulseColors.warning))
             rows.append(("Dropped GPS points", "\(session.rejectedGpsPointCount)", session.rejectedGpsPointCount == 0 ? PulseColors.textPrimary : PulseColors.warning))
             rows.append(("Distance source", session.distanceMeters != nil ? "GPS route" : "—", PulseColors.textPrimary))

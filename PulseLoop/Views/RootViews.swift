@@ -42,6 +42,7 @@ struct RootAppView: View {
                 if phase == .active {
                     liveWorkout.recover()
                     routeDeepLinkIfNeeded()
+                    HealthSyncService.shared.triggerAutomaticSync(context: modelContext, delaySeconds: 2.0)
                 }
             }
             .onOpenURL { url in
@@ -80,6 +81,8 @@ struct RootAppView: View {
                     VitalsSettingsView()
                 case .settingsPrivacyData:
                     PrivacyDataSettingsView()
+                case .settingsHealth:
+                    HealthSettingsDetailView()
                 case .settingsAbout:
                     AboutSettingsView()
                 case .pairing:

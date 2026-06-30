@@ -49,6 +49,15 @@ nonisolated enum WorkoutAppGroup {
     static let commandSessionKey = "pendingWorkoutCommandSession"
     static let commandTimeKey = "pendingWorkoutCommandTime"  // Date for de-dupe
 
+    /// Mirror of the user's units preference (canonical source is `UserProfile.units`). Kept in the
+    /// app group so the Live Activity widget extension — which can't read SwiftData — can format
+    /// distance/pace, and so model-layer helpers have a cheap synchronous read. Written by the app
+    /// whenever the profile's units change (see `ProfileSettingsView.save`).
+    static var useImperialUnits: Bool {
+        get { UserDefaults(suiteName: suite)?.bool(forKey: "useImperialUnits") ?? false }
+        set { UserDefaults(suiteName: suite)?.set(newValue, forKey: "useImperialUnits") }
+    }
+
     static func post(_ command: String, sessionID: String) {
         guard let d = UserDefaults(suiteName: suite) else { return }
         d.set(command, forKey: commandKey)
@@ -133,14 +142,19 @@ enum WorkoutLAColors {
 
     static func paceLabel(_ secPerKm: Double?) -> String {
         guard let secPerKm, secPerKm.isFinite, secPerKm > 0 else { return "—" }
-        let total = Int(secPerKm.rounded())
+        let isImperial = WorkoutAppGroup.useImperialUnits
+        let factor = isImperial ? 1.60934 : 1.0
+        let secPerUnit = secPerKm * factor
+        let total = Int(secPerUnit.rounded())
         let minutes = total / 60
         let seconds = total % 60
-        return String(format: "%d:%02d /km", minutes, seconds)
+        return String(format: "%d:%02d /%@", minutes, seconds, isImperial ? "mi" : "km")
     }
 
     static func distanceLabel(_ meters: Double) -> String {
         guard meters >= 50 else { return "—" }
-        return String(format: "%.2f km", meters / 1000)
+        let isImperial = WorkoutAppGroup.useImperialUnits
+        let divisor = isImperial ? 1609.34 : 1000.0
+        return String(format: "%.2f %@", meters / divisor, isImperial ? "mi" : "km")
     }
 }

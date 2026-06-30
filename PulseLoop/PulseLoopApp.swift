@@ -52,6 +52,12 @@ struct PulseLoopApp: App {
         // One-time cleanup of activity totals inflated by the old accumulator bug.
         ActivityService.migrateInflatedActivityIfNeeded(context: container.mainContext)
 
+        // Seed the app-group units mirror from the stored profile so the Live Activity widget and
+        // model-layer helpers format correctly even before the profile editor is opened this launch.
+        if let profile = ProfileRepository.profile(context: container.mainContext) {
+            WorkoutAppGroup.useImperialUnits = (profile.units == .imperial)
+        }
+
         // Don't bring up CoreBluetooth under tests (see `isRunningUnitTests`).
         let client = RingBLEClient(startManager: !runningTests)
         let coordinator = RingSyncCoordinator(client: client, context: container.mainContext)

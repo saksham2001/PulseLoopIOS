@@ -211,7 +211,7 @@ final class EventPersistenceSubscriber {
                     calories: calories,
                     distanceMeters: distanceMeters,
                     source: "live",
-                    syncedAt: Date()
+                    syncedAt: nil
                 ),
                 context: context
             )
@@ -221,28 +221,36 @@ final class EventPersistenceSubscriber {
                 entityId: row.id.uuidString,
                 payloadJSON: #"{"steps":\#(row.steps),"calories":\#(Int(row.calories)),"distance_m":\#(Int(row.distanceMeters))}"#
             ))
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .activityBucket(timestamp, steps, distanceMeters):
             // Per-quarter-hour ring history: upserted by timestamp + the day total recomputed as the
             // sum of distinct buckets, so re-syncs are idempotent (no drift). Calories omitted.
             ActivityService.applyActivityBucket(date: timestamp, steps: steps, distanceMeters: distanceMeters, context: context)
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case .activitySyncReset:
             // No longer needed — bucket upsert-by-timestamp makes re-syncs idempotent on its own.
             // Kept as a no-op so the (still-published) event doesn't fall through to `unknown`.
             break
         case let .heartRateSample(bpm, timestamp):
             persistMeasurement(kind: .heartRate, value: Double(bpm), timestamp: timestamp, source: .live, kindLabel: "hr_sample")
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .spo2Result(value, timestamp):
             persistMeasurement(kind: .spo2, value: Double(value), timestamp: timestamp, source: .live, kindLabel: "spo2_result")
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .historyMeasurement(kind, value, timestamp):
             persistMeasurement(kind: kind, value: value, timestamp: timestamp, source: .history, kindLabel: "history_measurement")
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .stressSample(value, timestamp):
             persistMeasurement(kind: .stress, value: Double(value), timestamp: timestamp, source: .colmi, kindLabel: "stress_sample")
         case let .hrvSample(value, timestamp):
             persistMeasurement(kind: .hrv, value: Double(value), timestamp: timestamp, source: .colmi, kindLabel: "hrv_sample")
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .temperatureSample(celsius, timestamp):
             persistMeasurement(kind: .temperature, value: celsius, timestamp: timestamp, source: .colmi, kindLabel: "temperature_sample")
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .sleepTimeline(timestamp, stages):
             persistSleepTimeline(start: timestamp, stages: stages)
+            HealthSyncService.shared.triggerAutomaticSync(context: context)
         case let .gpsPoint(sessionId, latitude, longitude, altitude, horizontalAccuracy, speed, course, accepted, rejectionReason, timestamp):
             context.insert(ActivityGpsPoint(
                 sessionId: sessionId,
@@ -270,11 +278,26 @@ final class EventPersistenceSubscriber {
         // NB: no per-event save here — `scheduleFlush()` (called by `persist`) batches the save.
     }
     
-    /// Persist one live/history measurement, record a derived-update audit row, and link it to
-    /// an in-progress workout if one is recording. Mirrors `persistence._on_hr_sample`.
     private func persistMeasurement(kind: MeasurementKind, value: Double, timestamp: Date, source: MeasurementSource, kindLabel: String) {
-        let row = Measurement(kind: kind, value: value, unit: kind.unit, timestamp: timestamp, source: source)
-        context.insert(row)
+        let kindRaw = kind.rawValue
+        let descriptor = FetchDescriptor<Measurement>(
+            predicate: #Predicate<Measurement> { $0.kindRaw == kindRaw && $0.timestamp == timestamp }
+        )
+        let existing = (try? context.fetch(descriptor))?.first
+        
+        let row: Measurement
+        if let existing {
+            row = existing
+            if existing.value != value || existing.sourceRaw != source.rawValue {
+                existing.value = value
+                existing.sourceRaw = source.rawValue
+                existing.syncedAt = nil // Reset sync status so it pushes the updated value to HealthKit
+            }
+        } else {
+            row = Measurement(kind: kind, value: value, unit: kind.unit, timestamp: timestamp, source: source)
+            context.insert(row)
+        }
+        
         context.insert(DerivedUpdateRow(kind: kindLabel, entityType: "measurement", entityId: row.id.uuidString))
         _ = ActivityRecorderService.linkSample(
             kind: kind,
@@ -286,6 +309,7 @@ final class EventPersistenceSubscriber {
             context: context
         )
     }
+
 
     /// Upsert a sleep session by night, appending this packet's per-minute stage blocks and
     /// recomputing session bounds. The ring streams ~20 timeline packets (15 samples each) per

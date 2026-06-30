@@ -6,6 +6,10 @@ import SwiftUI
 struct WorkoutSettingsView: View {
     @State private var store = WorkoutPrefsStore.shared
 
+    // App-group flag read by the calorie calc in `ActivityService` (PulseServices).
+    @AppStorage("useAdvancedCalories", store: UserDefaults(suiteName: WorkoutAppGroup.suite))
+    private var useAdvancedCalories = false
+
     private let hrIntervals = [15, 30, 60, 90, 120]
     private let spo2Intervals = [120, 300, 600]
 
@@ -59,6 +63,15 @@ struct WorkoutSettingsView: View {
                     set: { store.settings.useGpsByDefault = $0 }
                 ))
                 accuracyCard
+
+                SectionHeader(title: "Calories", action: nil)
+                toggleRow("Use advanced calories", isOn: $useAdvancedCalories)
+                Text("Calculates energy expenditure using personalized MET values and heart rate "
+                     + "(Keytel formula) instead of a flat 8 kcal/minute estimation.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(PulseColors.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
             }
             .padding()
         }

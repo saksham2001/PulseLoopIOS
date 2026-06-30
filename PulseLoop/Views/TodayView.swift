@@ -21,6 +21,8 @@ struct TodayView: View {
     private var summaryService: CoachSummaryService { CoachSummaryService(modelContext: modelContext) }
     private var coachEnabled: Bool { coachStore.settings.coachMasterEnabled }
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
+    // Raw metres→display divisor for numeric deltas/sparklines (cards/labels use UnitsFormatter).
+    private var distanceDivisor: Double { units == .imperial ? 1609.344 : 1000 }
 
     /// Build the store exactly once, off the `body` path.
     private func ensureStore() {
@@ -103,7 +105,7 @@ struct TodayView: View {
                         value: summary.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units).value } ?? "—",
                         unit: summary.distanceMeters.map { _ in UnitsFormatter.distance(meters: 0, units: units).unit },
                         color: PulseColors.distance,
-                        delta: TodayInsights.deltaFor(summary, value: summary.distanceMeters.map { $0 / 1000 }, series: summary.trends.distance7d.map { $0.value / 1000 }),
+                        delta: TodayInsights.deltaFor(summary, value: summary.distanceMeters.map { $0 / distanceDivisor }, series: summary.trends.distance7d.map { $0.value / distanceDivisor }),
                         sparkline: summary.trends.distance7d.map(\.value)
                     )
                 }

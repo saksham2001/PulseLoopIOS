@@ -1,9 +1,33 @@
 import XCTest
 import SwiftData
+import HealthKit
 @testable import PulseLoop
 
 @MainActor
 final class ActivityServiceTests: XCTestCase {
+
+    // MARK: - Apple Health workout import mapping
+
+    /// Imported HealthKit workouts must land on PulseLoop's canonical activity types so they
+    /// render with the right icon/label in the activity section (and round-trip with the export
+    /// map). Unknown types fall back to "other" rather than being dropped.
+    func testHealthKitWorkoutTypeMapping() {
+        XCTAssertEqual(HealthSyncService.activityType(from: .walking), "walk")
+        XCTAssertEqual(HealthSyncService.activityType(from: .running), "run")
+        XCTAssertEqual(HealthSyncService.activityType(from: .cycling), "cycle")
+        XCTAssertEqual(HealthSyncService.activityType(from: .traditionalStrengthTraining), "gym")
+        XCTAssertEqual(HealthSyncService.activityType(from: .hiking), "hike")
+        XCTAssertEqual(HealthSyncService.activityType(from: .cardioDance), "dance")
+        XCTAssertEqual(HealthSyncService.activityType(from: .yoga), "yoga")
+        XCTAssertEqual(HealthSyncService.activityType(from: .soccer), "sport")
+        // Every mapped value must be a type ActivityMeta can render.
+        let known = Set(ActivityMeta.order)
+        for hk in [HKWorkoutActivityType.walking, .running, .cycling, .hiking, .swimming, .golf] {
+            XCTAssertTrue(known.contains(HealthSyncService.activityType(from: hk)),
+                          "mapped type for \(hk.rawValue) should be a known ActivityMeta type")
+        }
+    }
+
     func testRatchetOnlyIncreases() throws {
         let context = try TestSupport.makeContext()
         let date = Date()
@@ -92,5 +116,49 @@ final class ActivityServiceTests: XCTestCase {
         XCTAssertEqual(summary.latestSpO2, 97)
         XCTAssertEqual(summary.durationSeconds, 20 * 60)
         XCTAssertEqual(session.status, .finished)
+    }
+
+    func testAdvancedCalorieCalculationMET() throws {
+        let context = try TestSupport.makeContext()
+        
+        let defaults = UserDefaults(suiteName: WorkoutAppGroup.suite)
+        defaults?.set(true, forKey: "useAdvancedCalories")
+        defer {
+            defaults?.removeObject(forKey: "useAdvancedCalories")
+        }
+        
+        let profile = UserProfile(age: 30, sex: "male", heightCm: 178, weightKg: 80)
+        context.insert(profile)
+        try context.save()
+        
+        let session = ActivityRecorderService.start(type: "run", useGps: false, notes: nil, context: context)
+        let endedAt = session.startedAt.addingTimeInterval(3600)
+        let summary = ActivityService.finishSummary(for: session, endedAt: endedAt, context: context)
+        
+        XCTAssertEqual(summary.calories ?? 0.0, 784.0, accuracy: 0.1)
+    }
+
+    func testAdvancedCalorieCalculationKeytel() throws {
+        let context = try TestSupport.makeContext()
+        
+        let defaults = UserDefaults(suiteName: WorkoutAppGroup.suite)
+        defaults?.set(true, forKey: "useAdvancedCalories")
+        defer {
+            defaults?.removeObject(forKey: "useAdvancedCalories")
+        }
+        
+        let profile = UserProfile(age: 25, sex: "female", heightCm: 165, weightKg: 60)
+        context.insert(profile)
+        try context.save()
+        
+        let session = ActivityRecorderService.start(type: "run", useGps: false, notes: nil, context: context)
+        
+        let t0 = session.startedAt.addingTimeInterval(30)
+        TestSupport.insertMeasurement(kind: .heartRate, value: 150, timestamp: t0, source: .live, into: context)
+        
+        let endedAt = session.startedAt.addingTimeInterval(30 * 60)
+        let summary = ActivityService.finishSummary(for: session, endedAt: endedAt, context: context)
+        
+        XCTAssertEqual(summary.calories ?? 0.0, 293.6, accuracy: 0.5)
     }
 }

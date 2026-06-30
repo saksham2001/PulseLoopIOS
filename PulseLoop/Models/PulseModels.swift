@@ -26,7 +26,7 @@ enum MeasurementKind: String, Codable, CaseIterable {
         case .spo2: return "%"
         case .stress: return ""
         case .hrv: return "ms"
-        case .temperature: return "°C"
+        case .temperature: return WorkoutAppGroup.useImperialUnits ? "°F" : "°C"
         }
     }
 }
@@ -192,6 +192,7 @@ final class Measurement {
     var confidenceRaw: String
     var activitySessionId: UUID?
     var rawPacketId: UUID?
+    var syncedAt: Date?
     var createdAt: Date
     
     init(
@@ -203,7 +204,8 @@ final class Measurement {
         source: MeasurementSource = .ring,
         confidence: DecodeConfidence = .known,
         activitySessionId: UUID? = nil,
-        rawPacketId: UUID? = nil
+        rawPacketId: UUID? = nil,
+        syncedAt: Date? = nil
     ) {
         self.id = id
         self.kindRaw = kind.rawValue
@@ -214,6 +216,7 @@ final class Measurement {
         self.confidenceRaw = confidence.rawValue
         self.activitySessionId = activitySessionId
         self.rawPacketId = rawPacketId
+        self.syncedAt = syncedAt
         self.createdAt = Date()
     }
     
@@ -468,6 +471,7 @@ final class ActivitySession {
     var notes: String?
     var useGps: Bool
     var perceivedEffort: String?
+    var syncedAt: Date?
     var createdAt: Date
     var updatedAt: Date
 
@@ -483,6 +487,12 @@ final class ActivitySession {
     var lastSensorPollAt: Date?
     var lastGpsPointAt: Date?
 
+    /// Set when this session was imported from an Apple Health workout recorded by a *different*
+    /// app (Whoop, Strava, Apple Watch, …). `nil` for sessions recorded natively in PulseLoop.
+    /// Stores the source `HKWorkout.uuid` so re-running the import dedupes instead of duplicating,
+    /// and so the Health *export* path / daily-total netting can exclude rows we only read in.
+    var healthKitWorkoutID: UUID? = nil
+
     init(
         id: UUID = UUID(),
         type: String,
@@ -493,7 +503,8 @@ final class ActivitySession {
         calories: Double? = nil,
         distanceMeters: Double? = nil,
         notes: String? = nil,
-        useGps: Bool = true
+        useGps: Bool = true,
+        syncedAt: Date? = nil
     ) {
         self.id = id
         self.type = type
@@ -505,6 +516,7 @@ final class ActivitySession {
         self.distanceMeters = distanceMeters
         self.notes = notes
         self.useGps = useGps
+        self.syncedAt = syncedAt
         self.createdAt = Date()
         self.updatedAt = Date()
     }

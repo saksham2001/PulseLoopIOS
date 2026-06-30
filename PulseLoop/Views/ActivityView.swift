@@ -18,6 +18,10 @@ struct ActivityView: View {
     @State private var goalsOpen = false
     @State private var historyOpen = false
 
+    // Numeric divisor for the distance trend graph, driven by the profile's units preference
+    // (the cards/labels go through UnitsFormatter; the graph needs a raw metres→display number).
+    private var distanceDivisor: Double { units == .imperial ? 1609.344 : 1000 }
+
     var body: some View {
         let summary = MetricsService.buildTodaySummary(context: modelContext)
         let stale = ActivityRecorderService.recoverStaleSession(context: modelContext)
@@ -77,7 +81,7 @@ struct ActivityView: View {
                         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
                     } else {
                         ForEach(todayWorkouts) { session in
-                            ActivityWorkoutRow(session: session) { path.append(AppRoute.activityDetail(session.id)) }
+                            ActivityWorkoutRow(session: session, units: units) { path.append(AppRoute.activityDetail(session.id)) }
                         }
                     }
                 }
@@ -190,7 +194,7 @@ struct ActivityView: View {
     }
     private func distanceValues(_ summary: TodaySummary) -> [Double] {
         let raw = distanceRange == .sevenDays ? summary.trends.distance7d.map(\.value) : MetricsService.metricRange(metric: .distance, range: distanceRange, context: modelContext).map(\.value)
-        return raw.map { $0 / 1000 }
+        return raw.map { $0 / distanceDivisor }
     }
     private func caloriesValues(_ summary: TodaySummary) -> [Double] {
         caloriesRange == .sevenDays ? summary.trends.calories7d.map(\.value) : MetricsService.metricRange(metric: .calories, range: caloriesRange, context: modelContext).map(\.value)
@@ -302,7 +306,10 @@ struct GoalEditorSheet: View {
 struct WorkoutHistorySheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \ActivitySession.startedAt, order: .reverse) private var sessions: [ActivitySession]
+    @Query private var profiles: [UserProfile]
     let onSelect: (UUID) -> Void
+
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
     var body: some View {
         NavigationStack {
@@ -313,7 +320,7 @@ struct WorkoutHistorySheet: View {
                         EmptyStateView(title: "No workouts yet", body: "Recorded workouts will appear here.")
                     } else {
                         ForEach(finished) { session in
-                            ActivityWorkoutRow(session: session) { onSelect(session.id) }
+                            ActivityWorkoutRow(session: session, units: units) { onSelect(session.id) }
                         }
                     }
                 }

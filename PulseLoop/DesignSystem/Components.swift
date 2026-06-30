@@ -602,6 +602,7 @@ enum ActivityMeta {
 
 struct ActivityWorkoutRow: View {
     let session: ActivitySession
+    var units: UnitsPreference = .metric
     var onTap: (() -> Void)?
 
     var body: some View {
@@ -626,7 +627,8 @@ struct ActivityWorkoutRow: View {
                     HStack(spacing: 12) {
                         Text(durationLabel).font(.system(size: 12).monospacedDigit())
                         if let distance = session.distanceMeters {
-                            Text(String(format: "%.2f km", distance / 1000)).font(.system(size: 12).monospacedDigit())
+                            let d = UnitsFormatter.distance(meters: distance, units: units)
+                            Text("\(d.value) \(d.unit)").font(.system(size: 12).monospacedDigit())
                         }
                         if let hr = session.avgHeartRate {
                             Text("\(Int(hr)) bpm avg").font(.system(size: 12).monospacedDigit())
