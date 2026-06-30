@@ -51,6 +51,14 @@ struct CoachSettingsSection: View {
         !OpenRouterModel.allCases.contains { $0.rawValue == store.settings.model }
     }
 
+    /// Which provider's key field to surface. The on-device provider needs no
+    /// key (and has no cloud backup), so it surfaces none.
+    private var effectiveKeyProvider: CoachProviderMode? {
+        store.settings.providerMode == .appleOnDevice
+            ? nil
+            : store.settings.providerMode
+    }
+
     var body: some View {
         SectionHeader(title: "AI Coach", action: nil)
         StatusCopy(title: "Status", body: flags.statusLine)
@@ -67,33 +75,42 @@ struct CoachSettingsSection: View {
                 .tint(PulseColors.accent)
             }
 
-            labeledRow("Model") {
-                Picker("Model", selection: modelPickerBinding) {
-                    switch store.settings.providerMode {
-                    case .userGeminiKey:
-                        ForEach(GeminiModel.allCases) { model in
-                            Text(model.label).tag(model.rawValue)
-                        }
-                    case .userOpenRouterKey:
-                        ForEach(OpenRouterModel.allCases) { model in
-                            Text(model.label).tag(model.rawValue)
-                        }
-                        Text("Custom…").tag(customModelTag)
-                    default:
-                        ForEach(CoachModel.allCases) { model in
-                            Text(model.label).tag(model.rawValue)
+            // On-device has a single fixed model and runs only on-device (no
+            // cloud backup) — show a privacy/availability card instead of a
+            // model picker.
+            if store.settings.providerMode == .appleOnDevice {
+                appleOnDeviceCard
+            } else {
+                labeledRow("Model") {
+                    Picker("Model", selection: modelPickerBinding) {
+                        switch store.settings.providerMode {
+                        case .userGeminiKey:
+                            ForEach(GeminiModel.allCases) { model in
+                                Text(model.label).tag(model.rawValue)
+                            }
+                        case .userOpenRouterKey:
+                            ForEach(OpenRouterModel.allCases) { model in
+                                Text(model.label).tag(model.rawValue)
+                            }
+                            Text("Custom…").tag(customModelTag)
+                        default:
+                            ForEach(CoachModel.allCases) { model in
+                                Text(model.label).tag(model.rawValue)
+                            }
                         }
                     }
+                    .pickerStyle(.menu)
+                    .tint(PulseColors.accent)
                 }
-                .pickerStyle(.menu)
-                .tint(PulseColors.accent)
             }
 
             if store.settings.providerMode == .userOpenRouterKey, isCustomOpenRouterModel {
                 customModelField
             }
 
-            if store.settings.providerMode == .userOpenAIKey {
+            // The key field tracks the *effective* provider — the active cloud
+            // provider (none in on-device mode, which needs no key).
+            if effectiveKeyProvider == .userOpenAIKey {
                 apiKeyField(
                     placeholder: "sk-…",
                     hint: "Stored only in your device Keychain. Used to call OpenAI directly.",
@@ -104,7 +121,7 @@ struct CoachSettingsSection: View {
                     onSave: saveOpenAIKey,
                     onRemove: removeOpenAIKey
                 )
-            } else if store.settings.providerMode == .userGeminiKey {
+            } else if effectiveKeyProvider == .userGeminiKey {
                 apiKeyField(
                     placeholder: "AIza…",
                     hint: "Stored only in your device Keychain. Used to call Gemini directly.",
@@ -115,7 +132,7 @@ struct CoachSettingsSection: View {
                     onSave: saveGeminiKey,
                     onRemove: removeGeminiKey
                 )
-            } else if store.settings.providerMode == .userOpenRouterKey {
+            } else if effectiveKeyProvider == .userOpenRouterKey {
                 apiKeyField(
                     placeholder: "sk-or-v1-…",
                     hint: "Stored only in your device Keychain. Used to call OpenRouter directly.",
@@ -128,7 +145,11 @@ struct CoachSettingsSection: View {
                 )
             }
 
-            toggleRow("Web search", isOn: webSearchBinding)
+            // The on-device provider is tool-less: it ignores web search, so the
+            // toggle isn't offered there.
+            if store.settings.providerMode != .appleOnDevice {
+                toggleRow("Web search", isOn: webSearchBinding)
+            }
 
             // OpenRouter-only routing controls. OpenRouter exposes a unified
             // reasoning-effort hint plus provider-level privacy and sort options
@@ -161,7 +182,11 @@ struct CoachSettingsSection: View {
 
             toggleRow("AI actions (set goals, log, edit)", isOn: writeToolsBinding)
             toggleRow("Live ring measurements", isOn: liveMeasurementsBinding)
-            toggleRow("Image input (attach photos)", isOn: imageInputBinding)
+            // The on-device model has no image-input API in the shipping SDK, so
+            // the option isn't offered there.
+            if store.settings.providerMode != .appleOnDevice {
+                toggleRow("Image input (attach photos)", isOn: imageInputBinding)
+            }
 
             if !memories.isEmpty {
                 SectionHeader(title: "Coach memory", action: nil)
@@ -258,6 +283,37 @@ struct CoachSettingsSection: View {
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
         .onAppear(perform: refreshKeyState)
+    }
+
+    // MARK: - On-device (Apple) info card
+
+    /// Privacy + availability panel shown when the on-device provider is picked.
+    /// Replaces the model picker (the model is fixed) and explains the v1 limits.
+    private var appleOnDeviceCard: some View {
+        let availability = AppleOnDeviceAvailability.current
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: availability.isAvailable ? "lock.iphone" : "exclamationmark.triangle")
+                    .font(.system(size: 15))
+                    .foregroundStyle(availability.isAvailable ? PulseColors.accent : PulseColors.danger)
+                Text(availability.isAvailable ? "On-device · private" : "On-device unavailable")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(PulseColors.textPrimary)
+            }
+            Text(availability.isAvailable
+                 ? "Your health data is analyzed entirely on your iPhone and never leaves the device. No API key, no network — works offline and free of charge."
+                 : availability.statusMessage)
+                .font(.system(size: 12))
+                .foregroundStyle(PulseColors.textSecondary)
+            Text("On-device coaching gives summaries, check-ins and chat. Charts, AI actions and web search need a cloud provider.")
+                .font(.caption)
+                .foregroundStyle(PulseColors.textMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(PulseColors.card)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
     }
 
     // MARK: - Custom OpenRouter model field

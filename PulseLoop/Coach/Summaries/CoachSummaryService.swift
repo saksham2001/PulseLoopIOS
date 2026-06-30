@@ -91,21 +91,13 @@ final class CoachSummaryService {
     }
 
     private func resolveClient() -> (key: String?, client: ResponsesClient) {
-        switch settingsStore.settings.providerMode {
-        case .userGeminiKey:
-            let key = (try? geminiKeyStore.readKey()) ?? nil
-            return (key, GeminiClient(apiKey: key ?? ""))
-        case .userOpenRouterKey:
-            let key = (try? openRouterKeyStore.readKey()) ?? nil
-            return (key, OpenRouterClient(
-                apiKey: key ?? "",
-                model: settingsStore.settings.openRouterModel,
-                privacyRouting: settingsStore.settings.orEnablePrivacyRouting,
-                providerSort: settingsStore.settings.orProviderSort))
-        default:
-            let key = (try? keyStore.readKey()) ?? nil
-            return (key, clientFactory(key ?? ""))
-        }
+        CoachClientResolver.resolve(
+            settings: settingsStore.settings,
+            openAIKeyStore: keyStore,
+            geminiKeyStore: geminiKeyStore,
+            openRouterKeyStore: openRouterKeyStore,
+            openAIClientFactory: clientFactory
+        )
     }
 
     private func generateAndUpsert(

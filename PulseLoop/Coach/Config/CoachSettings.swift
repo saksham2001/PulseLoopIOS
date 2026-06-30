@@ -5,6 +5,7 @@ import Foundation
 /// and is treated as disabled until implemented.
 enum CoachProviderMode: String, Codable, CaseIterable, Identifiable {
     case offlineStub
+    case appleOnDevice
     case userOpenAIKey
     case userGeminiKey
     case userOpenRouterKey
@@ -15,6 +16,7 @@ enum CoachProviderMode: String, Codable, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .offlineStub: return "Offline"
+        case .appleOnDevice: return "On-device (Apple)"
         case .userOpenAIKey: return "OpenAI (your key)"
         case .userGeminiKey: return "Gemini (your key)"
         case .userOpenRouterKey: return "OpenRouter (your key)"
@@ -134,7 +136,12 @@ struct CoachSettings: Codable, Equatable {
     // Milestone D — automated daily check-in notifications.
     var notificationsEnabled: Bool = false
     var morningHour: Int = 8
+    var middayHour: Int = 13
     var eveningHour: Int = 19
+    /// Proactive, event-driven anomaly alerts (resting-HR drift, low SpO₂, poor
+    /// sleep). On-device only — free/unlimited local inference makes "watch the
+    /// stream and speak up when something looks off" practical. Off by default.
+    var proactiveAlertsEnabled: Bool = false
 
     /// The OpenRouter model slug to use. Free-form (the user may type any slug);
     /// falls back to the default only when the stored `model` is blank.
@@ -166,7 +173,9 @@ struct CoachSettings: Codable, Equatable {
         maxRounds = try c.decodeIfPresent(Int.self, forKey: .maxRounds) ?? d.maxRounds
         notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? d.notificationsEnabled
         morningHour = try c.decodeIfPresent(Int.self, forKey: .morningHour) ?? d.morningHour
+        middayHour = try c.decodeIfPresent(Int.self, forKey: .middayHour) ?? d.middayHour
         eveningHour = try c.decodeIfPresent(Int.self, forKey: .eveningHour) ?? d.eveningHour
+        proactiveAlertsEnabled = try c.decodeIfPresent(Bool.self, forKey: .proactiveAlertsEnabled) ?? d.proactiveAlertsEnabled
     }
 }
 
