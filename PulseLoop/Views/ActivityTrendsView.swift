@@ -28,6 +28,7 @@ struct ActivityTrendsView: View {
                 stepsSection(summary)
                 distanceSection(summary)
                 caloriesSection(summary)
+                explainer
             }
             .padding(16)
             .padding(.bottom, 40)
@@ -36,6 +37,20 @@ struct ActivityTrendsView: View {
         .background(PulseColors.background)
         .navigationTitle("Activity Trends")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Explainer
+
+    private var explainer: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("WHAT THIS MEANS").font(.system(size: 11, weight: .semibold)).tracking(1.0).foregroundStyle(PulseColors.textMuted)
+            Text("Each bar is one day's total (or a month's daily average for the year). The dashed line is your daily goal — bars above it are days you hit it. The value up top is your average for the range.")
+                .font(.system(size: 13)).foregroundStyle(PulseColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(PulseColors.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
     }
 
     // MARK: - Period selector
@@ -52,18 +67,27 @@ struct ActivityTrendsView: View {
     // MARK: - Metric sections
 
     /// Per-day samples for a metric in the current period, so every bar is comparable to the daily
-    /// goal line. Week uses the aligned Mon–Sun 7-day trend (exactly 7 points, correct even in demo
-    /// mode). Month uses `metricRange` daily bars. Year always returns a fixed 12-bucket scaffold of
-    /// the last 12 calendar months (oldest→newest), each holding that month's per-day average — months
-    /// with no data render as empty bars — so the axis is stable and the bars sit against the daily goal.
-    private func samples(for metric: MetricKey, trend: [DailyMetricPoint]) -> [MetricSample] {
+    /// goal line. Week is a rolling last-7-days scaffold ending today (oldest→newest) — no Monday
+    /// anchoring, so there are never empty future slots. Month uses `metricRange` daily bars. Year is a
+    /// fixed 12-bucket scaffold of the last 12 calendar months, each holding that month's per-day
+    /// average. Missing days/months render as empty bars.
+    private func samples(for metric: MetricKey) -> [MetricSample] {
+        let cal = Calendar.current
         if period == .sevenDays {
-            return trend.map { MetricSample(timestamp: $0.date, value: $0.value) }
+            // Daily values keyed by start-of-day from the stored rows.
+            var byDay: [Date: Double] = [:]
+            for row in MetricsRepository.activityRows(context: modelContext) {
+                byDay[cal.startOfDay(for: row.date), default: 0] += rowValue(row, metric: metric)
+            }
+            let today = cal.startOfDay(for: Date())
+            return (0..<7).reversed().compactMap { offset in
+                guard let day = cal.date(byAdding: .day, value: -offset, to: today) else { return nil }
+                return MetricSample(timestamp: day, value: byDay[day] ?? 0)
+            }
         }
         if period != .twelveMonths {
             return MetricsService.metricRange(metric: metric, range: period, context: modelContext)
         }
-        let cal = Calendar.current
         // Monthly totals keyed by year-month from the existing fetch.
         let raw = MetricsService.metricRange(metric: metric, range: .twelveMonths, context: modelContext)
         var totals: [DateComponents: Double] = [:]
@@ -82,8 +106,19 @@ struct ActivityTrendsView: View {
         }
     }
 
+    /// The stored daily value for a metric (mirrors the private mapping in `MetricsService`).
+    private func rowValue(_ row: ActivityDaily, metric: MetricKey) -> Double {
+        switch metric {
+        case .steps: return Double(row.steps)
+        case .calories: return row.calories
+        case .distance: return row.distanceMeters
+        case .activeMinutes: return Double(row.activeMinutes)
+        default: return 0
+        }
+    }
+
     private func stepsSection(_ summary: TodaySummary) -> some View {
-        let samples = samples(for: .steps, trend: summary.trends.steps7d)
+        let samples = samples(for: .steps)
         let values = samples.map(\.value)
         let avg = dailyAverage(values)
         return metricSection(
@@ -98,7 +133,7 @@ struct ActivityTrendsView: View {
     }
 
     private func distanceSection(_ summary: TodaySummary) -> some View {
-        let samples = samples(for: .distance, trend: summary.trends.distance7d)
+        let samples = samples(for: .distance)
         // Convert every metre sample to the user's display unit for both bars and the average.
         let values = samples.map { Double(UnitsFormatter.distance(meters: $0.value, units: units).value) ?? 0 }
         let avg = dailyAverage(values)
@@ -118,7 +153,7 @@ struct ActivityTrendsView: View {
         // If the ring doesn't track active energy, show the section empty (— cal/day, no bars) rather
         // than raw ring values — matches the summary widget and the Today page's `isVisible` gating.
         let available = MetricsService.isVisible(.calories, context: modelContext)
-        let samples = available ? samples(for: .calories, trend: summary.trends.calories7d) : []
+        let samples = available ? samples(for: .calories) : []
         let values = samples.map(\.value)
         let avg = dailyAverage(values)
         return metricSection(
@@ -177,12 +212,12 @@ struct ActivityTrendsView: View {
 
     // MARK: - Derived values
 
-    /// The headline average-per-day: the mean of the per-day bar values shown. Bars are already daily
-    /// (Week/Month) or per-month daily-averages (Year). For Year the 12-month scaffold pads missing
-    /// months with 0, so average only the months that actually have data (mirrors "days with data").
-    /// Empty ⇒ nil (rendered as "— /day"); never divides by zero.
+    /// The headline average-per-day: the mean of the per-day bar values shown. Week and Year are fixed
+    /// scaffolds that pad missing days/months with 0, so average only the populated ones (mirrors "days
+    /// with data"); Month comes from `metricRange` (already days-with-data only). Empty ⇒ nil (shown as
+    /// "— /day"); never divides by zero.
     private func dailyAverage(_ values: [Double]) -> Double? {
-        let considered = period == .twelveMonths ? values.filter { $0 > 0 } : values
+        let considered = period == .thirtyDays ? values : values.filter { $0 > 0 }
         guard !considered.isEmpty else { return nil }
         return considered.reduce(0, +) / Double(considered.count)
     }
