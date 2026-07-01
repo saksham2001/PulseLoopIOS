@@ -27,11 +27,11 @@ enum MetricsService {
             : MetricsRepository.measurements(kind: .spo2, start: cutoff24h, end: Date(), context: context)
         let hrSamples = samplesSinceCutoff(rows: hrRows, range: .twentyFourHours, includeAll: isDemo)
         let spo2Samples = samplesSinceCutoff(rows: spo2Rows, range: .twentyFourHours, includeAll: isDemo)
-        // Display copies for the Today sparklines respect the user's graph-resolution setting (the raw
-        // copies above stay untouched for stats/timeline below). Full resolution → identity.
-        let buckets24h = MetricPrefsStore.shared.settings.resolution.targetBuckets(for: .twentyFourHours)
-        let hrSamplesDisplay = MetricDownsampler.bucketAverage(hrSamples, targetBuckets: buckets24h)
-        let spo2SamplesDisplay = MetricDownsampler.bucketAverage(spo2Samples, targetBuckets: buckets24h)
+        // Display copies for the Today sparklines go through the SAME transform Vitals uses
+        // (`displaySamples`) over the rows already fetched above — so Today and Vitals show an identical
+        // range/graph — with no extra DB fetch. The raw copies stay untouched for stats/timeline below.
+        let hrSamplesDisplay = displaySamples(hrSamples, range: .twentyFourHours)
+        let spo2SamplesDisplay = displaySamples(spo2Samples, range: .twentyFourHours)
         // Latest values are the newest reading of each kind regardless of age (the old code took
         // `.last` of the FULL kind history, not the 24h window) — fetch them independently so a
         // last reading older than 24h still surfaces.
@@ -114,8 +114,15 @@ enum MetricsService {
         default:
             return []
         }
-        // Display-only smoothing: bucket-average dense series per the user's resolution preference.
-        // `.full` (targetBuckets 0) is identity; raw stored rows are never modified.
+        return displaySamples(raw, range: range)
+    }
+
+    /// The display transform applied to already-fetched, windowed samples: bucket-average per the
+    /// user's graph-resolution preference (`.full`/targetBuckets 0 is identity). This is the SINGLE
+    /// source of truth for the vitals sparkline/chart shape, so any caller that runs it over the same
+    /// samples gets a byte-identical result — used by both `metricRange` (Vitals) and
+    /// `buildTodaySummary` (Today) so the two pages never disagree on a metric's range/graph.
+    static func displaySamples(_ raw: [MetricSample], range: MetricRange) -> [MetricSample] {
         let targetBuckets = MetricPrefsStore.shared.settings.resolution.targetBuckets(for: range)
         return MetricDownsampler.bucketAverage(raw, targetBuckets: targetBuckets)
     }

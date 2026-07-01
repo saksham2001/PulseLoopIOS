@@ -66,22 +66,43 @@ struct LinePoint: Equatable {
     let value: Double
 }
 
+/// A point in pure value space: `x` is any linear coordinate (a timestamp's `timeIntervalSince1970`,
+/// or minutes-elapsed for activity charts). Keeps the splitting math independent of Date/geometry.
+struct ValuePoint: Equatable {
+    let x: Double
+    let value: Double
+}
+
 enum ZoneLineSplitter {
     /// Split the segment between `a` and `b` at every threshold strictly between their values, so each
     /// returned piece lies entirely within one zone. Crossing points are linearly interpolated in both
     /// time and value. A pair within a single zone returns one piece `[a, b]`. Endpoints are preserved
     /// exactly. `thresholds` should be sorted ascending (zone boundaries).
     static func split(_ a: LinePoint, _ b: LinePoint, thresholds: [Double]) -> [(LinePoint, LinePoint)] {
-        let lo = min(a.value, b.value)
-        let hi = max(a.value, b.value)
-        // Boundaries strictly inside the segment's value span, ordered along a→b.
+        // Delegate to the value-space core using the timestamps as the x coordinate.
+        let pieces = split(x0: a.time.timeIntervalSince1970, v0: a.value,
+                           x1: b.time.timeIntervalSince1970, v1: b.value, thresholds: thresholds)
+        return pieces.map { start, end in
+            (LinePoint(time: Date(timeIntervalSince1970: start.x), value: start.value),
+             LinePoint(time: Date(timeIntervalSince1970: end.x), value: end.value))
+        }
+    }
+
+    /// Value-space core: split the segment `(x0,v0)→(x1,v1)` at every threshold strictly between the
+    /// values. `x` can be any linear coordinate (elapsed minutes, seconds, epoch). Pure + testable.
+    static func split(x0: Double, v0: Double, x1: Double, v1: Double,
+                      thresholds: [Double]) -> [(ValuePoint, ValuePoint)] {
+        let a = ValuePoint(x: x0, value: v0)
+        let b = ValuePoint(x: x1, value: v1)
+        let lo = min(v0, v1)
+        let hi = max(v0, v1)
         let crossings = thresholds
             .filter { $0 > lo && $0 < hi }
-            .sorted { a.value <= b.value ? $0 < $1 : $0 > $1 }
+            .sorted { v0 <= v1 ? $0 < $1 : $0 > $1 }
 
-        guard !crossings.isEmpty, a.value != b.value else { return [(a, b)] }
+        guard !crossings.isEmpty, v0 != v1 else { return [(a, b)] }
 
-        var pieces: [(LinePoint, LinePoint)] = []
+        var pieces: [(ValuePoint, ValuePoint)] = []
         var current = a
         for threshold in crossings {
             let point = interpolate(a, b, atValue: threshold)
@@ -93,11 +114,10 @@ enum ZoneLineSplitter {
     }
 
     /// The point on segment a→b where the value equals `target` (assumes target is between the values).
-    private static func interpolate(_ a: LinePoint, _ b: LinePoint, atValue target: Double) -> LinePoint {
+    private static func interpolate(_ a: ValuePoint, _ b: ValuePoint, atValue target: Double) -> ValuePoint {
         let span = b.value - a.value
         guard span != 0 else { return a }
         let t = (target - a.value) / span               // 0…1 along a→b
-        let time = a.time.addingTimeInterval(b.time.timeIntervalSince(a.time) * t)
-        return LinePoint(time: time, value: target)
+        return ValuePoint(x: a.x + (b.x - a.x) * t, value: target)
     }
 }

@@ -721,14 +721,33 @@ struct WorkoutMetricsSections: View {
 
             if hr.count > 1 {
                 chartCard(title: "HEART RATE", footnote: hrFootnote) {
-                    HRLineChart(samples: hr, height: 120)
+                    ActivityZoneLineChart(
+                        samples: hr,
+                        startAt: session.startedAt,
+                        metric: .heartRate,
+                        yDomain: hrDomain(hr),
+                        thresholds: VitalsThresholdEngine.zoneThresholds(for: .heartRate, profile: physiology),
+                        height: 120,
+                        colorForValue: { VitalsThresholdEngine.colorToken(forValue: $0, metric: .heartRate, profile: physiology).color }
+                    )
                 }
                 HRZonesCard(samples: hr, age: userAge)
             }
 
             if spo2.count > 1 {
                 chartCard(title: "BLOOD OXYGEN", footnote: spo2Footnote) {
-                    SpO2DotsChart(samples: spo2, height: 110)
+                    ActivityZoneLineChart(
+                        samples: spo2,
+                        startAt: session.startedAt,
+                        metric: .spo2,
+                        yDomain: 88...100,
+                        referenceBands: [ReferenceBand(lower: 95, upper: 100, colorToken: .cyan)],
+                        dashedRules: [92],
+                        showPoints: true,
+                        thresholds: VitalsThresholdEngine.zoneThresholds(for: .spo2, profile: physiology),
+                        height: 110,
+                        colorForValue: { VitalsThresholdEngine.colorToken(forValue: $0, metric: .spo2, profile: physiology).color }
+                    )
                 }
             }
 
@@ -746,6 +765,18 @@ struct WorkoutMetricsSections: View {
     /// Age from the (single) user profile, used to estimate HRmax for the zones card.
     private var userAge: Int? {
         (try? modelContext.fetch(FetchDescriptor<UserProfile>()))?.first?.age
+    }
+
+    /// Physiology profile driving the activity chart's zone coloring (same engine as vitals).
+    private var physiology: UserPhysiologyProfile { UserPhysiologyProfile(profiles.first) }
+
+    /// HR y-domain padded around the data and clamped to a sane range, like the vitals HR card.
+    private func hrDomain(_ samples: [MetricSample]) -> ClosedRange<Double> {
+        let values = samples.map(\.value).filter { $0 > 0 }
+        guard let lo = values.min(), let hi = values.max() else { return 40...200 }
+        let lower = max(40, min(lo - 8, 60))
+        let upper = min(220, max(hi + 8, 120))
+        return lower < upper ? lower...upper : 40...200
     }
 
     private var header: some View {

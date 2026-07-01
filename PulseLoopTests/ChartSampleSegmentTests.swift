@@ -114,4 +114,39 @@ final class ChartSampleSegmentTests: XCTestCase {
         let pieces = ZoneLineSplitter.split(point(0, 38), point(100, 44), thresholds: [38])
         XCTAssertEqual(pieces.count, 1)
     }
+
+    // MARK: - Value-space splitter (activity charts, x = minutes)
+
+    func testValueSpaceSplitAcrossHRThreshold() {
+        // Activity HR 95→110 over minutes 0→10 crossing the 101 zone boundary → two pieces split at 101.
+        let pieces = ZoneLineSplitter.split(x0: 0, v0: 95, x1: 10, v1: 110, thresholds: [101])
+        XCTAssertEqual(pieces.count, 2)
+        XCTAssertEqual(pieces[0].0.value, 95)
+        XCTAssertEqual(pieces[0].1.value, 101, accuracy: 0.0001)
+        XCTAssertEqual(pieces[1].1.value, 110)
+        // x interpolated at the crossing: (101-95)/(110-95) = 6/15 = 0.4 → minute 4.0.
+        XCTAssertEqual(pieces[0].1.x, 4.0, accuracy: 0.0001, "crossing x is interpolated in minutes")
+    }
+
+    func testValueSpaceWithinZoneIsOnePiece() {
+        let pieces = ZoneLineSplitter.split(x0: 0, v0: 70, x1: 5, v1: 80, thresholds: [101, 120])
+        XCTAssertEqual(pieces.count, 1)
+        XCTAssertEqual(pieces[0].0.x, 0)
+        XCTAssertEqual(pieces[0].1.x, 5)
+    }
+
+    func testValueAndDateSplittersAgree() {
+        // The Date overload delegates to the value-space core → same value splits.
+        let dateP = ZoneLineSplitter.split(point(0, 95), point(10, 110), thresholds: [101]).map { $0.1.value }
+        let valueP = ZoneLineSplitter.split(x0: 0, v0: 95, x1: 10, v1: 110, thresholds: [101]).map { $0.1.value }
+        XCTAssertEqual(dateP, valueP)
+    }
+
+    /// Elapsed-minutes mapping used by the activity chart: a sample N minutes after start → x = N.
+    func testElapsedMinutesMapping() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let sample = start.addingTimeInterval(8 * 60)   // 8 minutes later
+        let minutes = sample.timeIntervalSince(start) / 60
+        XCTAssertEqual(minutes, 8.0, accuracy: 0.0001)
+    }
 }
