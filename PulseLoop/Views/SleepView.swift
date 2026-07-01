@@ -163,6 +163,7 @@ private struct VisualizationCard<Content: View>: View {
                     HStack(spacing: 10) {
                         legendItem("Deep", SleepStageColors.deep)
                         legendItem("Light", SleepStageColors.light)
+                        legendItem("REM", SleepStageColors.rem)
                         legendItem("Awake", SleepStageColors.awake)
                     }
                 }

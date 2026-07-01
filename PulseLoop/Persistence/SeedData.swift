@@ -281,10 +281,11 @@ enum SeedData {
     /// returned blocks carry a placeholder sessionId; callers re-key them to the
     /// real session when persisting.
     private static func stageBlocks(total: Int, start: Date) -> [SleepStageBlock] {
-        // Reference pattern (sums to 455m); scaled to the requested total.
+        // Reference pattern (sums to 455m); scaled to the requested total. REM cycles get longer
+        // later in the night, matching real sleep architecture.
         let pattern: [(SleepStage, Int)] = [
-            (.light, 58), (.deep, 46), (.light, 92), (.awake, 12),
-            (.deep, 71), (.light, 126), (.awake, 10), (.light, 40)
+            (.light, 58), (.deep, 46), (.light, 70), (.rem, 22), (.awake, 12),
+            (.deep, 71), (.light, 88), (.rem, 38), (.awake, 10), (.light, 40)
         ]
         let referenceTotal = pattern.reduce(0) { $0 + $1.1 }
         let scale = Double(total) / Double(referenceTotal)

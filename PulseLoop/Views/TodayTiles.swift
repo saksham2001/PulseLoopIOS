@@ -72,15 +72,47 @@ struct ActivityTileView: View {
         summary.distanceMeters.flatMap { Double(UnitsFormatter.distance(meters: $0, units: units).value) }
     }
 
+    /// The three values with labels, top-to-bottom in ring order (outer→inner).
+    /// Missing metrics are skipped rather than shown as dashes.
+    private var values: [(label: String, text: String, color: Color)] {
+        let distUnit = units == .imperial ? "MI" : "KM"
+        let rows: [(String, String?, Color)] = [
+            ("STEPS", summary.steps.map { $0.formatted() }, PulseColors.steps),
+            (distUnit, summary.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units).value }, PulseColors.distance),
+            ("CAL", effectiveCalories.map { Int($0).formatted() }, PulseColors.calories),
+        ]
+        return rows.compactMap { label, text, color in text.map { (label, $0, color) } }
+    }
+
     var body: some View {
         TodayTile(label: "Activity", color: PulseColors.steps, onTap: onTap) {
             Spacer(minLength: 0)
-            ActivityRingsView(rings: [
-                ActivityRing(value: summary.steps.map(Double.init), goal: Double(summary.goals.stepsDaily), color: PulseColors.steps),
-                ActivityRing(value: distanceDisplay, goal: distanceGoalDisplay, color: PulseColors.distance),
-                ActivityRing(value: effectiveCalories, goal: Double(summary.goals.caloriesDaily), color: PulseColors.calories)
-            ], size: 96, stroke: 9, spacing: 4)
-            .frame(maxWidth: .infinity)
+            HStack(spacing: 10) {
+                ActivityRingsView(rings: [
+                    ActivityRing(value: summary.steps.map(Double.init), goal: Double(summary.goals.stepsDaily), color: PulseColors.steps),
+                    ActivityRing(value: distanceDisplay, goal: distanceGoalDisplay, color: PulseColors.distance),
+                    ActivityRing(value: effectiveCalories, goal: Double(summary.goals.caloriesDaily), color: PulseColors.calories)
+                ], size: 88, stroke: 9, spacing: 4)
+                // Nudge into the card padding so the bigger loop doesn't crowd the numbers.
+                .padding(.leading, -6)
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(value.label)
+                                .font(.system(size: 10, weight: .semibold))
+                                .tracking(0.8)
+                                .foregroundStyle(value.color)
+                            Text(value.text)
+                                .font(.system(size: 26, weight: .semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(PulseColors.textPrimary)
+                                .minimumScaleFactor(0.75)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Spacer(minLength: 0)
         }
     }
@@ -100,7 +132,7 @@ struct SleepTileView: View {
             if let sleep {
                 let stages = SleepStageDistribution(sleep)
                 let score = SleepScore.calculate(sleep).score
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(SleepFormat.duration(sleep.session.totalMinutes))
                         .font(.system(size: 30, weight: .semibold))
                         .monospacedDigit()
@@ -108,10 +140,10 @@ struct SleepTileView: View {
                         .minimumScaleFactor(0.7)
                         .lineLimit(1)
                     SleepStageBar(segments: stages.segments)
-                        .frame(height: 12)
+                        .frame(height: 24)
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
                         Text("\(score)")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(.system(size: 32, weight: .semibold))
                             .monospacedDigit()
                             .foregroundStyle(PulseColors.textPrimary)
                         Text("SCORE")
@@ -135,11 +167,12 @@ struct SleepTileView: View {
     }
 }
 
-/// One colored segment of the sleep-stage bar.
+/// One colored segment of the sleep-stage bar, with a short label ("DEEP"/"LIGHT"/"REM"/"AWAKE").
 struct SleepStageSegment: Identifiable {
     let id = UUID()
     let minutes: Double
     let color: Color
+    let label: String
 }
 
 /// Derives the four-stage split (deep/light/REM/awake) from a sleep summary. `SleepSummary` pre-sums
@@ -150,21 +183,24 @@ struct SleepStageDistribution {
 
     init(_ sleep: SleepSummary) {
         let remMinutes = sleep.blocks.filter { $0.stage == .rem }.reduce(0) { $0 + $1.durationMinutes }
-        let raw: [(Double, Color)] = [
-            (Double(max(0, sleep.deepMinutes)), SleepStageColors.deep),
-            (Double(max(0, sleep.lightMinutes)), SleepStageColors.light),
-            (Double(max(0, remMinutes)), SleepStageColors.rem),
-            (Double(max(0, sleep.awakeMinutes)), SleepStageColors.awake),
+        let raw: [(Double, Color, String)] = [
+            (Double(max(0, sleep.deepMinutes)), SleepStageColors.deep, "DEEP"),
+            (Double(max(0, sleep.lightMinutes)), SleepStageColors.light, "LIGHT"),
+            (Double(max(0, remMinutes)), SleepStageColors.rem, "REM"),
+            (Double(max(0, sleep.awakeMinutes)), SleepStageColors.awake, "AWK"),
         ]
-        segments = raw.filter { $0.0 > 0 }.map { SleepStageSegment(minutes: $0.0, color: $0.1) }
+        segments = raw.filter { $0.0 > 0 }.map { SleepStageSegment(minutes: $0.0, color: $0.1, label: $0.2) }
     }
 }
 
-/// A rounded horizontal bar whose segment widths are proportional to their minutes.
+/// A rounded horizontal bar whose segment widths are proportional to their minutes, with a tiny
+/// stage label under each segment. Labels are dropped (not squeezed) when their segment is too
+/// narrow to fit them, so short awake/REM slivers never render clipped text.
 struct SleepStageBar: View {
     let segments: [SleepStageSegment]
 
     private let spacing: CGFloat = 2
+    private let barHeight: CGFloat = 12
     private var total: Double { max(segments.reduce(0) { $0 + $1.minutes }, 1) }
 
     /// Segment pixel widths for a given track width, after reserving inter-segment spacing.
@@ -174,16 +210,36 @@ struct SleepStageBar: View {
         return segments.map { CGFloat($0.minutes / total) * usable }
     }
 
+    /// Segments below this share of the night don't get a label — a sliver's label would dominate
+    /// the sliver itself and clutter the bar.
+    private let minLabelShare = 0.10
+
+    private func showsLabel(_ segment: SleepStageSegment) -> Bool {
+        segment.minutes / total >= minLabelShare
+    }
+
     var body: some View {
         GeometryReader { geo in
             let ws = widths(for: geo.size.width)
-            HStack(spacing: spacing) {
-                ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
-                    segment.color.frame(width: ws[index])
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: spacing) {
+                    ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
+                        segment.color.frame(width: ws[index])
+                    }
+                }
+                .frame(height: barHeight)
+                .clipShape(Capsule())
+                HStack(spacing: spacing) {
+                    ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
+                        Text(showsLabel(segment) ? segment.label : "")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(segment.color)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(width: ws[index])
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipShape(Capsule())
         }
     }
 }
