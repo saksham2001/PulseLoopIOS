@@ -24,7 +24,6 @@ struct VitalsView: View {
 
         return AnyView(ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                headerBlock
                 measureRow(activeStore)
                 grid(activeStore)
             }
@@ -42,14 +41,7 @@ struct VitalsView: View {
         })
     }
 
-    // MARK: - Header & measure row
-
-    private var headerBlock: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Vitals").font(.system(size: 26, weight: .semibold)).foregroundStyle(PulseColors.textPrimary)
-            Text("Live measurements and trends").font(.system(size: 14)).foregroundStyle(PulseColors.textSecondary)
-        }
-    }
+    // MARK: - Measure row
 
     @ViewBuilder
     private func measureRow(_ store: VitalsStore) -> some View {

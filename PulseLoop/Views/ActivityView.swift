@@ -27,23 +27,6 @@ struct ActivityView: View {
 
         ScrollView {
             VStack(spacing: 16) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Activity").font(.system(size: 26, weight: .semibold)).foregroundStyle(PulseColors.textPrimary)
-                        Text("Record workouts and track movement from your ring")
-                            .font(.system(size: 14)).foregroundStyle(PulseColors.textMuted)
-                    }
-                    Spacer()
-                    Button { historyOpen = true } label: {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 16))
-                            .foregroundStyle(PulseColors.textSecondary)
-                            .frame(width: 40, height: 40)
-                            .background(PulseColors.card, in: Circle())
-                            .overlay(Circle().stroke(PulseColors.borderSubtle, lineWidth: 1))
-                    }
-                }
-
                 if !stale.isEmpty {
                     StaleSessionRecoveryCard(sessions: stale)
                 }
@@ -52,16 +35,28 @@ struct ActivityView: View {
                     path.append(AppRoute.activityTrends)
                 }
 
-                Button { path.append(AppRoute.recordSelect) } label: {
-                    Text("+ Record Activity")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .foregroundStyle(.white)
-                        .background(PulseColors.accent)
-                        .clipShape(Capsule())
+                HStack(spacing: 12) {
+                    Button { path.append(AppRoute.recordSelect) } label: {
+                        Text("+ Record Activity")
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .foregroundStyle(.white)
+                            .background(PulseColors.accent)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button { historyOpen = true } label: {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 18))
+                            .foregroundStyle(PulseColors.textSecondary)
+                            .frame(width: 60, height: 60)
+                            .background(PulseColors.card, in: Circle())
+                            .overlay(Circle().stroke(PulseColors.borderSubtle, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 // Today's workouts
                 VStack(alignment: .leading, spacing: 8) {
@@ -96,8 +91,6 @@ struct ActivityView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("WEEKLY GOAL").font(.system(size: 11, weight: .medium)).tracking(1.4).foregroundStyle(PulseColors.textMuted)
                                 Text("\(activeDayCount) of 7 active days").font(.system(size: 16)).foregroundStyle(PulseColors.textPrimary)
-                                Text("Goal: \(stepGoal.formatted()) steps · \(activeGoal) active min")
-                                    .font(.system(size: 12)).foregroundStyle(PulseColors.textSecondary)
                             }
                             Spacer(minLength: 0)
                         }
