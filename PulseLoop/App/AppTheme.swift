@@ -3,6 +3,7 @@ import SwiftUI
 enum AppRoute: Hashable {
     case activityDetail(UUID)
     case metricDetail(MetricKind)
+    case activityTrends
     case recordSelect
     case recordLive(UUID)
     case recordSummary(UUID)

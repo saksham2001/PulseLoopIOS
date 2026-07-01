@@ -56,6 +56,8 @@ struct RootAppView: View {
                     ActivityDetailView(sessionId: id)
                 case let .metricDetail(metric):
                     MetricDetailView(metric: metric, path: $path)
+                case .activityTrends:
+                    ActivityTrendsView(path: $path)
                 case .recordSelect:
                     RecordSelectView(path: $path)
                 case let .recordLive(id):

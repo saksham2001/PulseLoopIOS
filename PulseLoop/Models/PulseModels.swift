@@ -442,14 +442,21 @@ final class UserGoal {
     var sleepMinutes: Int
     var activeMinutes: Int
     var workoutsPerWeek: Int
+    /// Daily distance goal in canonical metres (converted to km/mi for display, like all stored distance).
+    /// Defaulted so this is a safe additive SwiftData migration for existing rows.
+    var distanceMeters: Double = 8000
+    /// Daily active-energy goal in kcal. Defaulted for the same additive-migration reason.
+    var calories: Int = 500
     var updatedAt: Date
 
-    init(id: UUID = UUID(), steps: Int = 10000, sleepMinutes: Int = 480, activeMinutes: Int = 45, workoutsPerWeek: Int = 4) {
+    init(id: UUID = UUID(), steps: Int = 10000, sleepMinutes: Int = 480, activeMinutes: Int = 45, workoutsPerWeek: Int = 4, distanceMeters: Double = 8000, calories: Int = 500) {
         self.id = id
         self.steps = steps
         self.sleepMinutes = sleepMinutes
         self.activeMinutes = activeMinutes
         self.workoutsPerWeek = workoutsPerWeek
+        self.distanceMeters = distanceMeters
+        self.calories = calories
         self.updatedAt = Date()
     }
 }

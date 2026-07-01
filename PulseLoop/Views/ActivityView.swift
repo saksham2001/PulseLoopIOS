@@ -12,9 +12,6 @@ struct ActivityView: View {
 
     private var units: UnitsPreference { profiles.first?.units ?? .metric }
 
-    @State private var stepsRange: MetricRange = .sevenDays
-    @State private var distanceRange: MetricRange = .sevenDays
-    @State private var caloriesRange: MetricRange = .sevenDays
     @State private var goalsOpen = false
     @State private var historyOpen = false
 
@@ -49,6 +46,10 @@ struct ActivityView: View {
 
                 if !stale.isEmpty {
                     StaleSessionRecoveryCard(sessions: stale)
+                }
+
+                DailyActivitySummaryCard(summary: summary, units: units) {
+                    path.append(AppRoute.activityTrends)
                 }
 
                 Button { path.append(AppRoute.recordSelect) } label: {
@@ -110,64 +111,6 @@ struct ActivityView: View {
                     .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    MetricCardButton(
-                        metric: "steps",
-                        label: "Steps",
-                        value: summary.steps.map { $0.formatted() } ?? "—",
-                        color: PulseColors.steps
-                    )
-                    MetricCardButton(
-                        metric: "calories",
-                        label: "Calories",
-                        value: summary.calories.map { Int($0).formatted() } ?? "—",
-                        unit: summary.calories == nil ? nil : "kcal",
-                        color: PulseColors.calories
-                    )
-                    MetricCardButton(
-                        metric: "distance",
-                        label: "Distance",
-                        value: summary.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units).value } ?? "—",
-                        unit: summary.distanceMeters.map { _ in UnitsFormatter.distance(meters: 0, units: units).unit },
-                        color: PulseColors.distance
-                    )
-                    MetricCardButton(
-                        metric: "readiness",
-                        label: "Active min",
-                        value: summary.activeMinutes.map { "\($0)" } ?? "—",
-                        unit: summary.activeMinutes == nil ? nil : "min",
-                        color: PulseColors.readiness
-                    )
-                }
-
-                // Trend graphs with range toggles
-                ActivitySectionCard(title: "Steps · \(rangeLabel(stepsRange))", range: $stepsRange) {
-                    let values = stepsValues(summary)
-                    if values.isEmpty {
-                        InlineEmptyState(title: "No step data", message: "Wear your ring to start tracking.")
-                    } else {
-                        StepBarsChart(values: values, labels: stepsLabels(summary), goal: stepsRange == .sevenDays ? Double(stepGoal) : nil, todayIndex: stepsRange == .sevenDays ? todayIdx : nil)
-                    }
-                }
-
-                ActivitySectionCard(title: "Distance · \(rangeLabel(distanceRange))", range: $distanceRange) {
-                    let values = distanceValues(summary)
-                    if values.isEmpty {
-                        InlineEmptyState(title: "No distance data", message: "Wear your ring to start tracking.")
-                    } else {
-                        DistanceLineChart(values: values)
-                    }
-                }
-
-                ActivitySectionCard(title: "Calories · \(rangeLabel(caloriesRange))", range: $caloriesRange) {
-                    let values = caloriesValues(summary)
-                    if values.isEmpty {
-                        InlineEmptyState(title: "No calorie data", message: "Wear your ring to start tracking.")
-                    } else {
-                        CaloriesAreaChart(values: values)
-                    }
-                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 96)
@@ -185,25 +128,6 @@ struct ActivityView: View {
 
     // MARK: data
 
-    private func stepsValues(_ summary: TodaySummary) -> [Double] {
-        stepsRange == .sevenDays ? summary.trends.steps7d.map(\.value) : MetricsService.metricRange(metric: .steps, range: stepsRange, context: modelContext).map(\.value)
-    }
-    private func distanceValues(_ summary: TodaySummary) -> [Double] {
-        let raw = distanceRange == .sevenDays ? summary.trends.distance7d.map(\.value) : MetricsService.metricRange(metric: .distance, range: distanceRange, context: modelContext).map(\.value)
-        return raw.map { $0 / 1000 }
-    }
-    private func caloriesValues(_ summary: TodaySummary) -> [Double] {
-        caloriesRange == .sevenDays ? summary.trends.calories7d.map(\.value) : MetricsService.metricRange(metric: .calories, range: caloriesRange, context: modelContext).map(\.value)
-    }
-
-    private func stepsLabels(_ summary: TodaySummary) -> [String] {
-        if stepsRange == .sevenDays { return weekLabels }
-        let samples = MetricsService.metricRange(metric: .steps, range: stepsRange, context: modelContext)
-        let formatter = DateFormatter()
-        formatter.dateFormat = stepsRange == .twelveMonths ? "MMM" : "d"
-        return samples.map { formatter.string(from: $0.timestamp) }
-    }
-
     private func weeklyDays(summary: TodaySummary, stepGoal: Int, todayIndex: Int) -> [WeeklyDay] {
         let steps = summary.trends.steps7d.map(\.value)
         return weekLabels.indices.map { i in
@@ -220,13 +144,90 @@ struct ActivityView: View {
         let jsDay = weekday - 1
         return (jsDay + 6) % 7
     }
+}
 
-    private func rangeLabel(_ range: MetricRange) -> String {
-        switch range {
-        case .thirtyDays: return "last 30 days"
-        case .twelveMonths: return "last 12 months"
-        default: return "last 7 days"
+// MARK: - Daily activity summary widget
+
+/// Full-width Apple-Fitness-style daily summary: colored Steps / Distance / Calories metrics on the
+/// left, three concentric progress rings on the right (outer→inner: steps, distance, calories). Reads
+/// the same daily totals and goals the page already uses; tapping opens the Activity Trends detail.
+/// Missing (nil) metrics render an em dash and an inactive ring — the ring math is nil/zero-safe.
+struct DailyActivitySummaryCard: View {
+    let summary: TodaySummary
+    let units: UnitsPreference
+    var onTap: () -> Void
+
+    private var distanceUnit: String { UnitsFormatter.distance(meters: 0, units: units).unit }
+    private var distanceValue: String? { summary.distanceMeters.map { UnitsFormatter.distance(meters: $0, units: units).value } }
+    /// Goal distance converted to the display unit, matching `distanceValue`, so the ring and text agree.
+    private var distanceGoalDisplay: Double {
+        Double(UnitsFormatter.distance(meters: summary.goals.distanceMetersDaily, units: units).value) ?? 0
+    }
+    private var distanceDisplay: Double? {
+        summary.distanceMeters.flatMap { Double(UnitsFormatter.distance(meters: $0, units: units).value) }
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("TODAY")
+                    .font(.system(size: 11, weight: .medium)).tracking(1.4)
+                    .foregroundStyle(PulseColors.textMuted)
+
+                HStack(alignment: .center, spacing: 12) {
+                    HStack(alignment: .top, spacing: 0) {
+                        metric(label: "Steps", value: summary.steps.map { $0.formatted() } ?? "—", unit: nil, color: PulseColors.steps)
+                        divider
+                        metric(label: "Distance", value: distanceValue ?? "—", unit: distanceValue == nil ? nil : distanceUnit, color: PulseColors.distance)
+                        divider
+                        metric(label: "Calories", value: summary.calories.map { Int($0).formatted() } ?? "—", unit: summary.calories == nil ? nil : "cal", color: PulseColors.calories)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    ActivityRingsView(rings: [
+                        ActivityRing(value: summary.steps.map(Double.init), goal: Double(summary.goals.stepsDaily), color: PulseColors.steps),
+                        ActivityRing(value: distanceDisplay, goal: distanceGoalDisplay, color: PulseColors.distance),
+                        ActivityRing(value: summary.calories, goal: Double(summary.goals.caloriesDaily), color: PulseColors.calories)
+                    ], size: 92, stroke: 9, spacing: 4)
+                    .frame(width: 92, height: 92)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(PulseColors.card)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
         }
+        .buttonStyle(.plain)
+    }
+
+    private func metric(label: String, value: String, unit: String?, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label.uppercased())
+                .font(.system(size: 13, weight: .bold)).tracking(0.6)
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value)
+                    .font(.system(size: 26, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(PulseColors.textPrimary)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                if let unit {
+                    Text(unit).font(.system(size: 12, weight: .medium)).foregroundStyle(PulseColors.textMuted)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(PulseColors.borderSubtle)
+            .frame(width: 1, height: 34)
+            .padding(.top, 2)
+            .padding(.horizontal, 8)
     }
 }
 
@@ -235,17 +236,28 @@ struct ActivityView: View {
 struct GoalEditorSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query private var profiles: [UserProfile]
     @State private var steps: Double = 8000
     @State private var activeMinutes: Double = 60
     @State private var sleepHours: Double = 8
     @State private var workouts: Double = 4
+    /// Distance goal edited in the user's display unit (km or mi); persisted as metres.
+    @State private var distance: Double = 5
+    @State private var calories: Double = 500
     @State private var loaded = false
+
+    private var units: UnitsPreference { profiles.first?.units ?? .metric }
+    private var distanceUnit: String { UnitsFormatter.distance(meters: 0, units: units).unit }
+    private var metersPerUnit: Double { units == .metric ? 1000 : 1609.344 }
+    private var distanceRange: ClosedRange<Double> { units == .metric ? 1...30 : 1...20 }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Daily targets") {
                     stepper("Steps", value: $steps, range: 2000...20000, step: 500, format: { "\(Int($0).formatted())" })
+                    stepper("Distance", value: $distance, range: distanceRange, step: 0.5, format: { String(format: "%.1f \(distanceUnit)", $0) })
+                    stepper("Calories", value: $calories, range: 100...2000, step: 50, format: { "\(Int($0)) cal" })
                     stepper("Active minutes", value: $activeMinutes, range: 10...180, step: 5, format: { "\(Int($0)) min" })
                     stepper("Sleep", value: $sleepHours, range: 5...10, step: 0.5, format: { String(format: "%.1f h", $0) })
                 }
@@ -278,6 +290,8 @@ struct GoalEditorSheet: View {
             activeMinutes = Double(goal.activeMinutes)
             sleepHours = Double(goal.sleepMinutes) / 60
             workouts = Double(goal.workoutsPerWeek)
+            distance = (goal.distanceMeters / metersPerUnit).rounded(toPlaces: 1)
+            calories = Double(goal.calories)
         }
     }
 
@@ -291,6 +305,8 @@ struct GoalEditorSheet: View {
         goal.activeMinutes = Int(activeMinutes)
         goal.sleepMinutes = Int(sleepHours * 60)
         goal.workoutsPerWeek = Int(workouts)
+        goal.distanceMeters = distance * metersPerUnit
+        goal.calories = Int(calories)
         goal.updatedAt = Date()
         try? modelContext.save()
         dismiss()

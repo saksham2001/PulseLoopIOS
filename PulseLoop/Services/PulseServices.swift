@@ -16,20 +16,15 @@ enum MetricsService {
         let today = activityRows.sorted { $0.date < $1.date }.last
         let anchorDate = today?.date ?? calendar.startOfDay(for: Date())
         let alignedRows = alignedWeekActivity(rows: activityRows, anchor: isDemo ? anchorDate : Date())
-        // 24h HR/SpO₂ samples come from windowed DB queries (demo keeps full history, matching the
-        // old `includeAll`). `samplesSinceCutoff` re-applies the cutoff so semantics are identical.
-        let cutoff24h = calendar.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
-        let hrRows = isDemo
-            ? MetricsRepository.measurementsAll(kind: .heartRate, context: context)
-            : MetricsRepository.measurements(kind: .heartRate, start: cutoff24h, end: Date(), context: context)
-        let spo2Rows = isDemo
-            ? MetricsRepository.measurementsAll(kind: .spo2, context: context)
-            : MetricsRepository.measurements(kind: .spo2, start: cutoff24h, end: Date(), context: context)
-        let hrSamples = samplesSinceCutoff(rows: hrRows, range: .twentyFourHours, includeAll: isDemo)
-        let spo2Samples = samplesSinceCutoff(rows: spo2Rows, range: .twentyFourHours, includeAll: isDemo)
-        // Display copies for the Today sparklines go through the SAME transform Vitals uses
-        // (`displaySamples`) over the rows already fetched above — so Today and Vitals show an identical
-        // range/graph — with no extra DB fetch. The raw copies stay untouched for stats/timeline below.
+        // 24h HR/SpO₂ samples come through the SAME `rangeSamples` path Vitals uses — including its
+        // per-kind demo detection and 24h windowing — so Today and Vitals never disagree on the range,
+        // resting/peak, or graph. (Global `isDemo` above is per-summary; HR/SpO₂ windowing must be
+        // per-kind to match Vitals when a database mixes real + mock across different metrics.) This is
+        // one fetch per kind — same fetch count as the previous inline query.
+        let hrSamples = rangeSamples(kind: .heartRate, range: .twentyFourHours, context: context)
+        let spo2Samples = rangeSamples(kind: .spo2, range: .twentyFourHours, context: context)
+        // Display copies go through the same `displaySamples` transform Vitals applies (resolution
+        // downsampling). Byte-identical to `metricRange`'s output, so the sparkline shape matches too.
         let hrSamplesDisplay = displaySamples(hrSamples, range: .twentyFourHours)
         let spo2SamplesDisplay = displaySamples(spo2Samples, range: .twentyFourHours)
         // Latest values are the newest reading of each kind regardless of age (the old code took
@@ -532,10 +527,12 @@ enum MetricsService {
                 stepsDaily: goal.steps,
                 activeMinutesDaily: goal.activeMinutes,
                 sleepHours: Double(goal.sleepMinutes) / 60,
-                exerciseDaysWeekly: goal.workoutsPerWeek
+                exerciseDaysWeekly: goal.workoutsPerWeek,
+                distanceMetersDaily: goal.distanceMeters,
+                caloriesDaily: goal.calories
             )
         }
-        return GoalsSummary(stepsDaily: 8000, activeMinutesDaily: 60, sleepHours: 7.5, exerciseDaysWeekly: 4)
+        return GoalsSummary(stepsDaily: 8000, activeMinutesDaily: 60, sleepHours: 7.5, exerciseDaysWeekly: 4, distanceMetersDaily: 8000, caloriesDaily: 500)
     }
     
 }
