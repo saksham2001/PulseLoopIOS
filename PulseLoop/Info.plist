@@ -14,6 +14,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.pulseloop.coach.refresh</string>
+		<string>com.pulseloop.coach.process</string>
 	</array>
 </dict>
 </plist>

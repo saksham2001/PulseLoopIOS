@@ -19,6 +19,11 @@ struct CoachFeatureFlags {
         switch settings.providerMode {
         case .offlineStub:
             return false
+        case .appleOnDevice:
+            // On-device only — ready when the local model is usable on this
+            // device. Otherwise the coach degrades to scripted and on-device
+            // failures surface as an error in chat.
+            return AppleOnDeviceAvailability.current.isAvailable
         case .userOpenAIKey, .userGeminiKey, .userOpenRouterKey:
             return hasAPIKey
         case .backendProxy:
@@ -41,6 +46,8 @@ struct CoachFeatureFlags {
         switch settings.providerMode {
         case .offlineStub:
             return "Offline — scripted replies only."
+        case .appleOnDevice:
+            return AppleOnDeviceAvailability.current.statusMessage
         case .userOpenAIKey:
             return hasAPIKey ? "Ready · \(settings.model)" : "Add an OpenAI key to enable."
         case .userGeminiKey:
