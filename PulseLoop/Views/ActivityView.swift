@@ -170,16 +170,12 @@ struct DailyActivitySummaryCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 14) {
-                Text("TODAY")
-                    .font(.system(size: 11, weight: .medium)).tracking(1.4)
-                    .foregroundStyle(PulseColors.textMuted)
-
                 HStack(alignment: .center, spacing: 12) {
-                    HStack(alignment: .top, spacing: 0) {
-                        metric(label: "Steps", value: summary.steps.map { $0.formatted() } ?? "—", unit: nil, color: PulseColors.steps)
-                        divider
-                        metric(label: "Distance", value: distanceValue ?? "—", unit: distanceValue == nil ? nil : distanceUnit, color: PulseColors.distance)
-                        divider
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .top, spacing: 0) {
+                            metric(label: "Steps", value: summary.steps.map { $0.formatted() } ?? "—", unit: nil, color: PulseColors.steps)
+                            metric(label: "Distance", value: distanceValue ?? "—", unit: distanceValue == nil ? nil : distanceUnit, color: PulseColors.distance)
+                        }
                         metric(label: "Calories", value: summary.calories.map { Int($0).formatted() } ?? "—", unit: summary.calories == nil ? nil : "cal", color: PulseColors.calories)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -220,14 +216,6 @@ struct DailyActivitySummaryCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var divider: some View {
-        Rectangle()
-            .fill(PulseColors.borderSubtle)
-            .frame(width: 1, height: 34)
-            .padding(.top, 2)
-            .padding(.horizontal, 8)
     }
 }
 
