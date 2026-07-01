@@ -70,7 +70,7 @@ struct MetricDetailView: View {
             if chart.count < 2 {
                 Text("Not enough data for this period.")
                     .font(.system(size: 13)).foregroundStyle(PulseColors.textMuted)
-                    .frame(maxWidth: .infinity, minHeight: 200, alignment: .center)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
             } else if metric == .bloodPressure {
                 bloodPressureChart
             } else {
@@ -83,7 +83,7 @@ struct MetricDetailView: View {
                     showPoints: metric == .spo2,
                     showAxes: true,
                     dashedRules: dashedRules(baseline: baseline),
-                    height: 320,
+                    height: 240,
                     thresholds: VitalsThresholdEngine.zoneThresholds(for: metric, profile: profile, baseline: baseline),
                     colorForValue: { value in
                         VitalsThresholdEngine.colorToken(forValue: value, metric: metric, profile: profile, baseline: baseline).color
@@ -117,7 +117,7 @@ struct MetricDetailView: View {
             }
         }
         .chartYScale(domain: lo...hi)
-        .frame(height: 220)
+        .frame(height: 200)
     }
 
     // MARK: - Stat tiles
@@ -128,12 +128,44 @@ struct MetricDetailView: View {
         let avg = values.isEmpty ? "--" : fmt(values.reduce(0, +) / Double(values.count))
         let lo = values.min().map(fmt) ?? "--"
         let hi = values.max().map(fmt) ?? "--"
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            MetricTile(title: "Latest", value: latest, unit: metric.unit, color: metric.accentColor)
-            MetricTile(title: "Average", value: avg, unit: metric.unit, color: metric.accentColor)
-            MetricTile(title: "Min", value: lo, unit: metric.unit, color: metric.accentColor)
-            MetricTile(title: "Max", value: hi, unit: metric.unit, color: metric.accentColor)
+        return HStack(spacing: 0) {
+            stat("Latest", latest)
+            statDivider
+            stat("Average", avg)
+            statDivider
+            stat("Min", lo)
+            statDivider
+            stat("Max", hi)
         }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity)
+        .background(PulseColors.card, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(PulseColors.borderSubtle, lineWidth: 1))
+    }
+
+    private func stat(_ title: String, _ value: String) -> some View {
+        VStack(spacing: 8) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .medium)).tracking(0.6)
+                .foregroundStyle(PulseColors.textMuted)
+                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value)
+                    .font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(PulseColors.textPrimary)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                if !metric.unit.isEmpty {
+                    Text(metric.unit).font(.system(size: 11, weight: .medium)).foregroundStyle(PulseColors.textMuted)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle().fill(PulseColors.borderSubtle).frame(width: 1, height: 34)
     }
 
     // MARK: - Legend

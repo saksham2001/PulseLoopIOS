@@ -16,23 +16,17 @@ struct VitalCard<Content: View>: View {
     var onTap: (() -> Void)?
     @ViewBuilder var content: () -> Content
 
-    private var valueFontSize: CGFloat { compact ? 34 : 56 }
+    private var valueFontSize: CGFloat { compact ? 30 : 36 }
     private var footerText: String? { footerOverride ?? model.lastUpdatedText }
 
     var body: some View {
         Button {
             onTap?()
         } label: {
-            VStack(alignment: .leading, spacing: compact ? 8 : 12) {
+            VStack(alignment: .leading, spacing: compact ? 6 : 8) {
                 header
                 if showsValueRow && !compact { valueRow }
                 content()
-                if let footer = footerText, !compact {
-                    Text(footer)
-                        .font(.system(size: 11))
-                        .foregroundStyle(PulseColors.textMuted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, compact ? 16 : 22)
@@ -60,6 +54,15 @@ struct VitalCard<Content: View>: View {
                 .font(.system(size: 11, weight: .medium)).tracking(1.0)
                 .foregroundStyle(PulseColors.textMuted)
             Spacer(minLength: 4)
+            // "Updated …" lives top-right so it doesn't add a footer row and grow the card height.
+            // Suppressed when the ESTIMATED chip is present so the two don't crowd the header.
+            if let footer = footerText, !compact, !model.isEstimated {
+                Text(footer)
+                    .font(.system(size: 11))
+                    .foregroundStyle(PulseColors.textMuted)
+                    .lineLimit(1)
+                    .layoutPriority(-1)
+            }
             if model.isEstimated {
                 estimatedChip
             }
@@ -77,7 +80,7 @@ struct VitalCard<Content: View>: View {
     // MARK: - Value + status + trend
 
     private var valueRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(model.valueText)
                     .font(.system(size: valueFontSize, weight: .semibold, design: .rounded))
@@ -86,7 +89,7 @@ struct VitalCard<Content: View>: View {
                     .contentTransition(.numericText())
                 if let unit = model.unitText {
                     Text(unit)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(PulseColors.textMuted)
                 }
             }
