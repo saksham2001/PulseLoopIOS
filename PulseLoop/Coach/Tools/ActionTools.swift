@@ -12,7 +12,7 @@ enum ActionTools {
     }
     static var measurementTools: [AnyCoachTool] { [triggerMeasurement] }
 
-    private static let activityEnum = ["walk", "run", "cycle", "gym", "squash", "sport", "yoga", "hike", "other"]
+    private static let activityEnum = ["walk", "run", "cycle", "gym", "squash", "sport", "yoga", "dance", "hike", "other"]
 
     // MARK: set_goal
 
