@@ -125,6 +125,7 @@ enum WorkoutLAColors {
         case "gym", "strength", "weights": return "dumbbell.fill"
         case "hike", "hiking":          return "figure.hiking"
         case "yoga":                    return "figure.yoga"
+        case "dance", "dancing":        return "figure.dance"
         case "squash", "tennis":        return "figure.tennis"
         case "sport", "soccer", "football": return "figure.soccer"
         default:                        return "sparkles"

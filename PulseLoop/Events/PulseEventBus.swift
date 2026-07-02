@@ -106,6 +106,16 @@ final class EventPersistenceSubscriber {
         self.context = context
     }
 
+    // Explicit deinit: cancels the outstanding event/flush tasks and (crucially) gives this
+    // @MainActor class a non-isolated deinit. Without one, the compiler synthesizes a main-actor
+    // -isolated deinit that hops through `swift_task_deinitOnExecutorMainActorBackDeploy` on dealloc;
+    // that back-deploy shim double-frees on iOS < 26.5 (the CI runner's runtime), aborting the test
+    // process with SIGABRT when a unit test creates and drops a subscriber. See the CI notes in ci.yml.
+    deinit {
+        task?.cancel()
+        flushTask?.cancel()
+    }
+
     func start() {
         guard task == nil else { return }
         task = Task {
@@ -315,7 +325,12 @@ final class EventPersistenceSubscriber {
     /// packet. Mirrors `persistence._on_sleep_timeline`.
     private func persistSleepTimeline(start: Date, stages: [SleepStage]) {
         let calendar = Calendar.current
-        let dateKey = calendar.startOfDay(for: start)
+
+        // Group packets by the waking-day boundary (sleep from 7 PM rolls to the next morning) so a
+        // night that starts before midnight lands under the morning of waking. See
+        // `Calendar.wakingDay(forSleepStart:)`.
+        let dateKey = calendar.wakingDay(forSleepStart: start)
+
         let allSessions = (try? context.fetch(FetchDescriptor<SleepSession>())) ?? []
         let session = allSessions.first { calendar.isDate($0.date, inSameDayAs: dateKey) }
             ?? {

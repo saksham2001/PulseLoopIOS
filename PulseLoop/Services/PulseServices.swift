@@ -539,6 +539,23 @@ enum MetricsService {
     
 }
 
+extension Calendar {
+    /// Hour-of-day boundary between "belongs to last night" and "belongs to the coming night."
+    /// Sleep starting at or after this hour rolls onto the *next* morning's waking day; anything
+    /// earlier (including small-hours and daytime naps) stays on the current day.
+    static let sleepEveningBoundaryHour = 19  // 7 PM
+
+    /// The waking-morning day key for a sleep session starting at `date`. Sleep that begins at or
+    /// after 7 PM belongs to the *next* day's waking morning (you fall asleep tonight, wake tomorrow),
+    /// so a night that crosses midnight groups onto the single morning it ends on. Sleep before 7 PM
+    /// — early-morning hours or a daytime nap — stays on the current day / last night's session.
+    func wakingDay(forSleepStart date: Date) -> Date {
+        let base = startOfDay(for: date)
+        guard component(.hour, from: date) >= Self.sleepEveningBoundaryHour else { return base }
+        return self.date(byAdding: .day, value: 1, to: base) ?? base
+    }
+}
+
 @MainActor
 enum SleepService {
     static func latestSleep(context: ModelContext) -> SleepSummary? {
@@ -623,6 +640,60 @@ enum SleepService {
             return Calendar.current.startOfDay(for: latest.date)
         }
         return Calendar.current.startOfDay(for: Date())
+    }
+
+    /// One-time repair of sleep sessions that were split across midnight (or duplicated) by the old
+    /// start-of-day grouping. `persistSleepTimeline` now keys packets by the noon-to-noon waking day
+    /// at write time, so no *new* splits occur — this only fixes rows persisted before that fix.
+    /// Idempotent + `UserDefaults`-gated so it runs once, off the render path. Mirrors
+    /// `ActivityService.migrateInflatedActivityIfNeeded`.
+    static func migrateSplitSleepSessionsIfNeeded(context: ModelContext) {
+        let key = "sleepMidnightMerge.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        realignAndDedupeSleepSessions(context: context)
+        UserDefaults.standard.set(true, forKey: key)
+    }
+
+    private static func realignAndDedupeSleepSessions(context: ModelContext) {
+        let calendar = Calendar.current
+
+        // 1. Re-align every session's date onto its noon-to-noon waking day.
+        guard let allSessions = try? context.fetch(FetchDescriptor<SleepSession>()) else { return }
+        for session in allSessions {
+            let targetDate = calendar.wakingDay(forSleepStart: session.startAt)
+            if calendar.startOfDay(for: session.date) != targetDate {
+                session.date = targetDate
+                session.updatedAt = Date()
+            }
+        }
+
+        // 2. Merge duplicates sharing a waking day. Fetch all blocks ONCE and group by session so we
+        // can both tie-break on block count and cascade-delete without re-scanning per session.
+        let allBlocks = (try? context.fetch(FetchDescriptor<SleepStageBlock>())) ?? []
+        let blocksBySession = Dictionary(grouping: allBlocks) { $0.sessionId }
+
+        let grouped = Dictionary(grouping: allSessions) { calendar.startOfDay(for: $0.date) }
+        for (_, sessionsForDate) in grouped where sessionsForDate.count > 1 {
+            // Keep the richest session: most sleep, then most blocks, then most recently updated;
+            // `id` only as a final deterministic fallback.
+            let sorted = sessionsForDate.sorted { a, b in
+                if a.totalMinutes != b.totalMinutes { return a.totalMinutes > b.totalMinutes }
+                let aBlocks = blocksBySession[a.id]?.count ?? 0
+                let bBlocks = blocksBySession[b.id]?.count ?? 0
+                if aBlocks != bBlocks { return aBlocks > bBlocks }
+                if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt }
+                return a.id.uuidString < b.id.uuidString
+            }
+
+            for session in sorted.dropFirst() {
+                for block in blocksBySession[session.id] ?? [] {
+                    context.delete(block)
+                }
+                context.delete(session)
+            }
+        }
+
+        try? context.save()
     }
 }
 
