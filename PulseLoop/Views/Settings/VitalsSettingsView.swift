@@ -37,7 +37,8 @@ struct MetricPrefsSettingsView: View {
                 }
 
                 SectionHeader(title: "Chart detail", action: nil)
-                Text("When the ring measures often, charts can look busy. Smoother levels average nearby points into a cleaner line — this only changes the display on this page, not your stored data.")
+                Text("When the ring measures often, charts can look busy. Smoother levels average nearby points into a cleaner line — "
+                     + "this only changes the display on this page, not your stored data.")
                     .font(.system(size: 12))
                     .foregroundStyle(PulseColors.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)

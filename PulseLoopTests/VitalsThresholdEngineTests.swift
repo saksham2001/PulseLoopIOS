@@ -175,7 +175,7 @@ final class VitalsThresholdEngineTests: XCTestCase {
         XCTAssertEqual(token(45, .heartRate), .blue)                       // low
         XCTAssertEqual(token(72, .heartRate), .metricAccent(.heartRate))   // normal = pink accent
         XCTAssertEqual(token(110, .heartRate), .amber)                     // elevated
-        XCTAssertEqual(token(130, .heartRate), .red)                       // high
+        XCTAssertEqual(token(130, .heartRate), .brightRed)                 // high (deeper red; accent is already reddish)
     }
 
     func testSpO2ZoneColors() {

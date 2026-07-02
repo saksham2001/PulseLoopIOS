@@ -44,7 +44,8 @@ struct ActivityTrendsView: View {
     private var explainer: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("WHAT THIS MEANS").font(.system(size: 11, weight: .semibold)).tracking(1.0).foregroundStyle(PulseColors.textMuted)
-            Text("Each bar is one day's total (or a month's daily average for the year). The dashed line is your daily goal — bars above it are days you hit it. The value up top is your average for the range.")
+            Text("Each bar is one day's total (or a month's daily average for the year). The dashed line is your daily goal — "
+                 + "bars above it are days you hit it. The value up top is your average for the range.")
                 .font(.system(size: 13)).foregroundStyle(PulseColors.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
