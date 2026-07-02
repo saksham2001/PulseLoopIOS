@@ -85,7 +85,7 @@ trends.
 
 | Today | AI Coach | Sleep |
 | --- | --- | --- |
-| [![Today](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/today%20page.png)](/screenshots/today%20page.png) | [![Coach](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/LLM%20coach%20example.png)](/screenshots/LLM%20coach%20example.png) | [![Sleep](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/sleep%20page.png)](/screenshots/sleep%20page.png) |
+| [![Today](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/today%20page.png)](/screenshots/today%20page.png) | [![Coach](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/LLM%20coach%20example.PNG)](/screenshots/LLM%20coach%20example.PNG) | [![Sleep](https://github.com/saksham2001/PulseLoopiOS/raw/main/screenshots/sleep%20page.png)](/screenshots/sleep%20page.png) |
 
 | Activity | Vitals | Workout Summary |
 | --- | --- | --- |
