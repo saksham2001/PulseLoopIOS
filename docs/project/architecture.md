@@ -43,6 +43,8 @@ PulseLoop/
 │  ├─ Tools/          Retrieval, analysis, charts, memory, web search, actions
 │  ├─ OpenAI/         Responses API client
 │  ├─ Gemini/         Google Gemini client
+│  ├─ OpenRouter/     OpenRouter client (many models via one key)
+│  ├─ Apple/          On-device Foundation Models client
 │  └─ Notifications/  Daily AI check-ins
 ├─ Views/             SwiftUI screens (Today, Vitals, Sleep, Activity, Coach)
 └─ DesignSystem/      Charts, components, theming

@@ -74,12 +74,14 @@ These guide what we build and what we say no to.
 ## Cross-platform parity
 
 Because the iOS and Android ports share the same protocol work, a big part of the
-roadmap is simply bringing the two ports to feature parity. The Android build is
-currently ahead in several areas (fuller protocol decoding, calibration,
-connection reliability, richer vitals UI).
+roadmap is simply bringing the two ports to feature parity. The low-level
+protocol, calibration, and connection reliability are now on both. iOS leads on
+the AI Coach (multiple providers, on-device model, multimodal input), while
+Android still leads on a few vitals detail screens and a couple of
+Colmi-specific decodes.
 
-See [iOS vs Android](../platforms/ios-vs-android.md) for the current gap list -
-much of it is fair game for contributors who want a well-scoped first task.
+See [iOS vs Android](../platforms/ios-vs-android.md) for the current gap list.
+Much of it is fair game for contributors who want a well-scoped first task.
 
 ## Want to help?
 

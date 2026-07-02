@@ -57,6 +57,11 @@ Android still leads on a few detail-level touches: deeper tap-through detail
 screens per metric with period selectors and stat tiles, and a one-tap combined
 measurement button. These are polish gaps rather than capability gaps.
 
+Both ports record workouts with GPS and heart rate zones. iOS records a broad
+set of activity types (walk, run, cycle, gym, squash, sport, yoga, hike, dance,
+and other), and the AI Coach can log or edit those sessions for you by voice or
+text, which Android has no equivalent for.
+
 ## Ring support and protocol
 
 The low-level work has converged. Both ports decode the full jring / 56ff metric
